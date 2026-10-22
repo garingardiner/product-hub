@@ -3,7 +3,7 @@ slug: 2026-q4-loft-block
 problem: Many customers need lofted geometry, but there's no Block Library block that automates creating a lofted body.
 phase: discovery
 priority: P1
-owner: Triston
+owner: Tristan Antonsen
 team: Build
 collaborators:
   user_research: []
@@ -16,7 +16,7 @@ target_release: 2027-01
 blockers: []
 decisions: []
 artifacts:
-  concept:           { form: claude-doc, link: "", status: not-started, owner: Triston }
+  concept:           { form: claude-doc, link: "", status: not-started, owner: Tristan Antonsen }
   feedback:          { form: data, path: feedback.yaml, status: not-started, owner: "" }
   project_spec:      { form: claude-doc, link: "", status: not-started, owner: "" }
   ux_spec:           { form: figma, link: "", status: not-started, owner: "" }

@@ -171,7 +171,7 @@ textarea{width:100%;min-height:72px;resize:vertical;line-height:1.45}
       <div class="row">
         <label>Name<input type="text" id="new-name" placeholder="e.g. Loft Block"></label>
         <label>Priority<select id="new-priority"><option>P0</option><option selected>P1</option><option>P2</option></select></label>
-        <label>Owner<input type="text" id="new-owner"></label>
+        <label>Owner<select id="new-owner"><option value="">Select an owner</option><option>Tristan Antonsen</option><option>Bryce Mazurowski</option><option>Patrick Ogdin</option></select></label>
         <label>Team<select id="new-team"><option value="">Select a team</option><option>Build</option><option>Analyze</option><option>Orchestrate</option></select></label>
         <label>Target<input type="text" id="new-target" placeholder="e.g. 2027-03"></label>
       </div>
@@ -242,6 +242,11 @@ const PHASE_ARTS={discovery:["concept"],feedback:["feedback"],spec:["project_spe
 const TEMPLATE_ARTS=[["concept","claude-doc"],["feedback","data","feedback.yaml"],["project_spec","claude-doc"],["ux_spec","figma"],["success_metrics","data","metrics.yaml"],["engineering_scope","data","scope.yaml"],["feature_benefits","claude-artifact"]];
 const MAX_UPLOAD=20*1024*1024;
 const TEAMS=["Build","Analyze","Orchestrate"];   // keep in sync with TEAMS in scripts/apply_hub_edits.py
+const OWNERS=["Tristan Antonsen","Bryce Mazurowski","Patrick Ogdin"];   // keep in sync with OWNERS there
+// A dropdown of fixed choices that still shows a current value outside the list
+const choiceSelect=(label,list,cur,onPick)=>el("label",{},label,el("select",{onchange:ev=>onPick(ev.target.value)},
+  el("option",{value:"",text:`Select ${/^[aeiou]/i.test(label)?"an":"a"} ${label.toLowerCase()}`,selected:!cur}),
+  list.concat(cur&&!list.includes(cur)?[cur]:[]).map(t=>el("option",{value:t,text:t,selected:cur===t}))));
 
 /* ---------- state ---------- */
 let db=null,user=null,assets=null,canEdit=false,meName="",addingFor=null;
@@ -594,10 +599,8 @@ function editForm(i,a){
   });
   return el("div",{class:"form"},
     el("p",{class:"note",text:"Changes show on the page as soon as you save. Ask Claude to sync the hub to write them into the repo; phase moves are checked against the gate again then."}),
-    el("div",{class:"row"},inp("name","Name"),el("label",{},"Priority",el("select",{onchange:ev=>{d.priority=ev.target.value}},["P0","P1","P2"].map(p=>el("option",{value:p,text:p,selected:d.priority===p})))),inp("owner","Owner"),
-      el("label",{},"Team",el("select",{onchange:ev=>{d.team=ev.target.value}},
-        el("option",{value:"",text:"Select a team",selected:!d.team}),
-        TEAMS.concat(d.team&&!TEAMS.includes(d.team)?[d.team]:[]).map(t=>el("option",{value:t,text:t,selected:d.team===t})))),inp("target","Target",{placeholder:"e.g. 2027-01"})),
+    el("div",{class:"row"},inp("name","Name"),el("label",{},"Priority",el("select",{onchange:ev=>{d.priority=ev.target.value}},["P0","P1","P2"].map(p=>el("option",{value:p,text:p,selected:d.priority===p})))),choiceSelect("Owner",OWNERS,d.owner,v=>{d.owner=v}),
+      choiceSelect("Team",TEAMS,d.team,v=>{d.team=v}),inp("target","Target",{placeholder:"e.g. 2027-01"})),
     el("label",{},"Problem",el("textarea",{oninput:ev=>{d.problem=ev.target.value}},d.problem||"")),
     phaseBox,
     el("div",{},el("p",{class:"label",style:"margin-bottom:6px",text:"Blockers"}),blkBox),
@@ -690,7 +693,7 @@ function newSlug(){
 $("#new-name").addEventListener("input",()=>{$("#new-slug").textContent=newSlug()||"—";});
 $("#new-btn").addEventListener("click",()=>{
   $("#new-panel").classList.remove("hidden");
-  if(!$("#new-owner").value) $("#new-owner").value=meName;
+  if(!$("#new-owner").value&&OWNERS.includes(meName)) $("#new-owner").value=meName;
   $("#new-name").focus();
 });
 $("#new-cancel").addEventListener("click",()=>{$("#new-panel").classList.add("hidden");$("#new-status").textContent="";});
@@ -704,7 +707,7 @@ $("#new-create").addEventListener("click",async()=>{
     await putEdit(slug,cur=>{cur.create={name,problem:$("#new-problem").value.trim(),priority:$("#new-priority").value,
       owner:$("#new-owner").value.trim(),team:$("#new-team").value.trim(),target_release:$("#new-target").value.trim()};});
     for(const id of ["#new-name","#new-problem","#new-target"]) $(id).value="";
-    $("#new-team").value="";
+    $("#new-team").value=""; $("#new-owner").value="";
     $("#new-slug").textContent="—"; $("#new-panel").classList.add("hidden"); say("");
     picked=slug; flashSlug=slug; render(); $("#detail").scrollIntoView({behavior:"smooth",block:"start"});
   }catch(err){say(err&&err.code==="permission_denied"?"You don't have permission to add initiatives here.":"Couldn't create it. Try again.");}
