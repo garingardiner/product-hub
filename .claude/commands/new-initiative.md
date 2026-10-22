@@ -5,4 +5,5 @@ Start a new initiative: $ARGUMENTS
 3. Read `contracts/concept.md`. Ask me the questions needed to draft the concept, a few at a time.
 4. Seed `requirements.yaml` and the `hypotheses` in `feedback.yaml` from what we discuss.
 5. Draft the concept in the form recorded in the manifest (default: Claude Doc) and record its link and status `draft`.
-6. Run `python scripts/status.py` and show me the roadmap row.
+6. Add the initiative to the Feedback Board's `initiatives` collection (doc id = slug, `{name}`) so contributors can pick it.
+7. Run `python scripts/status.py` and show me the roadmap row.

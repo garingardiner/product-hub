@@ -20,7 +20,8 @@ def load():
     return json.loads(LIB.read_text(encoding="utf-8")).get("entries", [])
 
 def fmt(e):
-    lines = [f"{e['id']}  [{e.get('type','')}] {e.get('customer','')} ({e.get('segment','')}, {e.get('source','')}, {e.get('date','')})"]
+    who = e.get('customer', '') + (f" / {e['contact']}" if e.get('contact') else "")
+    lines = [f"{e['id']}  [{e.get('type','')}] {who} ({e.get('segment','')}, {e.get('source','')}, {e.get('date','')})"]
     if e.get("quote"):
         lines.append(f'  “{e["quote"]}”')
     if e.get("summary"):
@@ -36,7 +37,7 @@ def search(a):
         if a.source and e.get("source") != a.source: continue
         if a.initiative and e.get("initiative") != a.initiative: continue
         if any(t not in e.get("tags", []) for t in a.tag or []): continue
-        hay = " ".join(str(e.get(k, "")) for k in ("id", "quote", "summary", "customer", "segment", "initiative")).lower() + " " + " ".join(e.get("tags", []))
+        hay = " ".join(str(e.get(k, "")) for k in ("id", "quote", "summary", "customer", "contact", "segment", "initiative")).lower() + " " + " ".join(e.get("tags", []))
         if any(w.lower() not in hay for w in a.words): continue
         out.append(e)
     if a.json:

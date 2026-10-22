@@ -14,7 +14,9 @@ Collected on the Feedback Board; snapshotted to `feedback/library.json`.
 | `tags` | 2–5 topic tags (see below) |
 | `source` | `interview`, `sales-call`, `support-ticket`, `survey`, `usage-data`, `other` |
 | `customer`, `segment`, `date` | Who and when. Segment is a tag-style value (`enterprise`, `mid-market`). |
-| `initiative` | Optional initiative slug this entry was collected for |
+| `contact` | Optional name and role of the person who said it (e.g. "Dana Lee, AM lead") |
+| `initiative` | Optional initiative slug this entry was collected for, picked from the board's initiative list |
+| `updatedAt` | Set by the board when an entry is edited after saving |
 | `requirements` | Optional requirement IDs it supports (`R-001`) |
 
 ## Tagging conventions

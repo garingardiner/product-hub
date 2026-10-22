@@ -28,6 +28,8 @@ informs several initiatives and arrives before any initiative exists.
 - **Collect** on the Feedback Board: https://claude.ai/artifact/MVCedVjgWJ9WyywSWuRstp
   Anyone with Contributor access pastes notes, a transcript, a ticket, or a quote; Claude extracts each point, keeps the
   customer's exact words, and suggests tags. The board is the source of truth.
+- **Initiative list on the board**: the board's initiative picker reads its `initiatives` collection (doc id = slug,
+  `{name}`). When an initiative is created or renamed, write it there with `ArtifactData` so contributors can pick it.
 - **Snapshot** into this repo: export JSON from the board and save it as `feedback/library.json` (overwrite).
   Commit it so Claude Code and `scripts/feedback.py` can search it offline.
 - **Search**: `python scripts/feedback.py search <words> --tag <tag> --segment <seg> --type <type>`,

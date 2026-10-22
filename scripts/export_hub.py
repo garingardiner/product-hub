@@ -27,6 +27,7 @@ def main():
     for e in lib.get("entries") or []:
         rows["feedback"].append({
             "id": e.get("id"), "date": text(e.get("date")), "customer": text(e.get("customer")),
+            "contact": text(e.get("contact")),
             "segment": text(e.get("segment")), "type": text(e.get("type")), "sentiment": text(e.get("sentiment")),
             "source": text(e.get("source")), "quote": text(e.get("quote")), "summary": text(e.get("summary")),
             "tags": ", ".join(e.get("tags") or []), "initiative": text(e.get("initiative")),
