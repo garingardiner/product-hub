@@ -11,6 +11,7 @@ priority: P0 | P1 | P2
 owner: string                # PM
 team: Build | Analyze | Orchestrate
 size: Small | Medium | Large   # rough project size
+archived: true               # optional; hidden from the hub's pipeline and lists until restored
 collaborators: { role: [names] }
 target_release: string       # optional month, YYYY-MM (e.g. 2027-01)
 blockers: [string]

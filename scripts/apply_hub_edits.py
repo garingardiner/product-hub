@@ -10,6 +10,7 @@ attachments_add, attachments_remove}}).
 - Edits are validated and written to initiative.yaml with comments kept.
 - Phase moves only forward one step when the gate passes (or backward).
 - Attachments are recorded under `attachments:`; a link used as an artifact becomes that artifact's link.
+- `patch.archived` archives or restores (logged as a decision); `delete` removes the initiative's folder.
 Writes <dir>/applied.json: {"applied": [{id, version}], "to_read": [attachments Claude still has to read]}.
 """
 import json, re, shutil, sys
@@ -59,6 +60,12 @@ def create(slug, basics, msgs):
 
 def apply_one(slug, data, yaml):
     msgs, to_read = [], []
+    if data.get("delete"):
+        folder = ROOT / "initiatives" / slug
+        if not SLUG.match(slug) or not (folder / "initiative.yaml").exists():
+            return False, [f"{slug}: nothing to delete"], []
+        shutil.rmtree(folder)
+        return True, [f"{slug}: deleted (folder removed; recoverable from Git history)"], []
     if data.get("create"):
         create(slug, data["create"], msgs)
     path = ROOT / "initiatives" / slug / "initiative.yaml"
@@ -92,6 +99,15 @@ def apply_one(slug, data, yaml):
             doc[k] = v
         elif k == "blockers":
             doc["blockers"] = [str(b).strip() for b in v if str(b).strip()]
+        elif k == "archived" and bool(v) != bool(doc.get("archived")):
+            if v:
+                doc["archived"] = True
+            else:
+                doc.pop("archived", None)
+            doc.setdefault("decisions", []).append(flow({
+                "date": date.today().isoformat(), "decision": "Archived" if v else "Restored from archive",
+                "by": "Product Hub page"}))
+            msgs.append(f"{slug}: {'archived' if v else 'restored'}")
     arts = doc.get("artifacts") or {}
     for key, ch in (data.get("artifacts") or {}).items():
         a = arts.get(key)

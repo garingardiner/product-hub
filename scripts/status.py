@@ -86,7 +86,8 @@ def main():
            "| Priority | Initiative | Phase | Owner | Target | Ready to advance? | Blockers |",
            "|---|---|---|---|---|---|---|"]
     for pri, _, m, gate in rows:
-        ready = "n/a" if m.get("phase") in ("done", "parked") else ("✅ yes" if not gate else "❌ " + "; ".join(gate))
+        ready = ("archived" if m.get("archived") else "n/a" if m.get("phase") in ("done", "parked")
+                 else ("✅ yes" if not gate else "❌ " + "; ".join(gate)))
         out.append(f"| {pri} | [{m.get('name')}](initiatives/{m.get('slug')}/initiative.yaml) | {m.get('phase')} | "
                    f"{m.get('owner', '')} | {m.get('target_release', '')} | {ready} | {'; '.join(m.get('blockers') or []) or '—'} |")
     (ROOT / "ROADMAP.md").write_text("\n".join(out) + "\n", encoding="utf-8")

@@ -201,7 +201,8 @@ textarea{width:100%;min-height:72px;resize:vertical;line-height:1.45}
     <div class="panel"><div class="scroll"><table class="roadmap" id="roadmap-table">
       <thead><tr><th>Priority</th><th>Initiative</th><th>Phase</th><th>Owner</th><th>Size</th><th>Target</th><th>Next gate</th><th class="num">Artifacts approved</th><th class="num">Blockers</th></tr></thead>
       <tbody></tbody>
-    </table></div></div>
+    </table></div>
+    <div class="actions" style="margin-top:8px"><button class="btn ghost small hidden" id="archived-toggle" type="button"></button></div></div>
   </section>
 
   <section class="section" id="whats-next">
@@ -320,7 +321,8 @@ function init(slug){
   return {...b,
     name:p.name??b.name, problem:p.problem??b.problem, priority:p.priority??b.priority, owner:p.owner??b.owner,
     team:p.team??b.team, size:p.size??(b.size||""), target:p.target_release??b.target, phase:p.phase??b.phase,
-    blockers:p.blockers??(b.blockers_list||[])};
+    blockers:p.blockers??(b.blockers_list||[]),
+    archived:p.archived??!!b.archived, deleting:!!(EDITS[slug]||{}).delete};
 }
 function arts(slug){
   const ch=(EDITS[slug]||{}).artifacts||{};
@@ -334,6 +336,8 @@ function gaps(slug,phase,artList){
 }
 const sortInits=list=>list.slice().sort((a,b)=>String(a.priority).localeCompare(String(b.priority))||PHASES.indexOf(b.phase)-PHASES.indexOf(a.phase));
 const allInits=()=>sortInits(allSlugs().map(init).filter(Boolean));
+const activeInits=()=>allInits().filter(i=>!i.archived&&!i.deleting);
+let showArchived=false,confirmDelete=false;
 const isReady=i=>gaps(i.slug,i.phase,arts(i.slug)).length===0;
 
 /* ---------- render ---------- */
@@ -345,10 +349,11 @@ function render(){
     for(const id of ["#pipe","#attn"]) $(id).replaceChildren(el("div",{class:"empty",text:"Nothing to show yet."}));
     return;
   }
-  if(!picked||!base(picked)) picked=inits[0].slug;
-  const notReady=inits.filter(i=>!isReady(i)).length;
-  $("#summary").textContent=`${inits.length} initiatives, ${notReady} not yet ready for their next phase. Synced from the repo ${snapAt?snapAt.slice(0,10):"—"}.`;
-  renderBanner(); renderPipe(inits); renderAttn(inits); renderRoadmap(inits); renderDetail(); renderFeedback();
+  const active=inits.filter(i=>!i.archived&&!i.deleting);
+  if(!picked||!base(picked)) picked=(active[0]||inits[0]).slug;
+  const notReady=active.filter(i=>!isReady(i)).length;
+  $("#summary").textContent=`${active.length} active initiative${active.length===1?"":"s"}, ${notReady} not yet ready for ${notReady===1?"its":"their"} next phase. Synced from the repo ${snapAt?snapAt.slice(0,10):"—"}.`;
+  renderBanner(); renderPipe(active); renderAttn(active); renderRoadmap(inits); renderDetail(); renderFeedback();
 }
 function renderBanner(){
   const slugs=Object.keys(EDITS).filter(s=>base(s));
@@ -380,10 +385,17 @@ function renderAttn(inits){
   }));
 }
 function renderRoadmap(inits){
-  $("#roadmap-table tbody").replaceChildren(...inits.map(i=>{
+  const archived=inits.filter(i=>i.archived&&!i.deleting);
+  const shown=inits.filter(i=>!i.archived||i.deleting||showArchived);
+  const tog=$("#archived-toggle");
+  tog.classList.toggle("hidden",!archived.length);
+  tog.textContent=showArchived?"Hide archived":`Show archived (${archived.length})`;
+  $("#roadmap-table tbody").replaceChildren(...shown.map(i=>{
     const a=arts(i.slug);
+    const tag=i.deleting?pill("Will be deleted at sync","bad"):i.archived?pill("Archived","dim")
+      :EDITS[i.slug]?pill(EDITS[i.slug].create&&i._new?"new, unsynced":"unsynced","pending"):null;
     return el("tr",{class:i.slug===picked?"on":"",onclick:()=>pick(i.slug,true)},
-      el("td",{},pill(i.priority)),el("td",{},el("b",{text:i.name}),EDITS[i.slug]?[" ",pill(EDITS[i.slug].create&&i._new?"new, unsynced":"unsynced","pending")]:null),
+      el("td",{},pill(i.priority)),el("td",{},el("b",{text:i.name}),tag?[" ",tag]:null),
       el("td",{text:PHASE_NAME[i.phase]||i.phase}),el("td",{text:i.owner}),el("td",{text:i.size||"—"}),el("td",{text:fmtTarget(i.target)}),
       el("td",{},pill(isReady(i)?"Ready":"Not ready")),
       el("td",{class:"num",text:`${a.filter(x=>["approved","synthesized"].includes(x.status)).length} of ${a.length}`}),
@@ -392,7 +404,7 @@ function renderRoadmap(inits){
 }
 function pick(slug,scroll){
   if(draft&&draft.slug!==slug&&!confirmLeave()) return;
-  picked=slug; draft=null; confirmDiscard=false; render();
+  picked=slug; draft=null; confirmDiscard=false; confirmDelete=false; render();
   if(scroll) $("#detail").scrollIntoView({behavior:"smooth",block:"start"});
 }
 function confirmLeave(){draft=null;return true;}
@@ -452,9 +464,42 @@ function renderDetail(){
       el("div",{class:"panel"},el("h3",{text:"Success metrics"}),table([{key:"name",label:"Metric",cls:"wide"},{key:"type",label:"Type",cls:"cap"},{key:"target",label:"Target"},{key:"method",label:"Method"},{key:"review_date",label:"Review"}],rows("metrics").filter(r=>r.slug===i.slug),"No metrics yet.")),
       el("div",{class:"panel"},el("h3",{text:"Decisions"}),table([{key:"date",label:"Date"},{key:"decision",label:"Decision",cls:"wide"},{key:"by",label:"By"}],decs,"No decisions logged yet."))
     ));
+  if(canEdit) box.append(lifecyclePanel(i));
   if(flashSlug===i.slug){box.classList.add("flash");setTimeout(()=>box.classList.remove("flash"),1500);flashSlug=null;}
   resolveNames();
 }
+/* ---------- archive / delete ---------- */
+function lifecyclePanel(i){
+  const b=base(i.slug), isNew=!!b._new;
+  const status=el("span",{class:"status",role:"status"});
+  const act=async fn=>{try{await fn();}catch(_){status.textContent="Couldn't save. Try again.";}};
+  let body;
+  if(i.deleting){
+    body=[el("p",{class:"note",text:`${i.name} will be deleted at the next sync. Its folder is removed from the repo; Git history keeps a copy.`}),
+      el("div",{class:"actions"},el("button",{class:"btn ghost small",type:"button",onclick:()=>act(()=>putEdit(i.slug,cur=>{delete cur.delete;}))},"Undo delete"))];
+  }else if(confirmDelete){
+    const typed=el("input",{type:"text",id:"delete-confirm",placeholder:i.name,"aria-label":`Type ${i.name} to confirm`});
+    body=[el("p",{class:"note",text:isNew?`Type the name to delete this new initiative. It hasn't synced, so nothing is in the repo yet.`:`Type the name to delete ${i.name}. At the next sync its folder is removed from the repo (Git history keeps a copy) and it leaves the Feedback Board's list.`}),
+      el("label",{style:"display:grid;gap:4px;font-size:.84rem;font-weight:600;max-width:22rem"},`Type “${i.name}” to confirm`,typed),
+      el("div",{class:"actions"},
+        el("button",{class:"btn danger small",type:"button",onclick:()=>{
+          if(typed.value.trim()!==i.name){status.textContent=`Type the name exactly: ${i.name}`;return;}
+          confirmDelete=false;
+          act(()=>isNew?db.doc("edits/"+i.slug).delete():putEdit(i.slug,cur=>{cur.delete=true;}));
+        }},"Delete initiative"),
+        el("button",{class:"btn ghost small",type:"button",onclick:()=>{confirmDelete=false;renderDetail();}},"Cancel"),status)];
+  }else{
+    body=[el("p",{class:"note",text:i.archived?"Archived initiatives are hidden from the pipeline and What's next. Restore brings it back.":"Archive hides it from the pipeline and What's next but keeps everything. Delete removes it from the repo."}),
+      el("div",{class:"actions"},
+        !isNew?el("button",{class:"btn ghost small",type:"button",onclick:()=>act(()=>putEdit(i.slug,cur=>{
+          const want=!i.archived;
+          if(want===!!b.archived) delete cur.patch.archived; else cur.patch.archived=want;
+        }))},i.archived?"Restore":"Archive"):null,
+        el("button",{class:"btn danger small",type:"button",onclick:()=>{confirmDelete=true;renderDetail();document.getElementById("delete-confirm")?.focus();}},"Delete…"),status)];
+  }
+  return el("div",{class:"panel",id:"lifecycle",style:"display:grid;gap:8px;background:var(--sunk)"},el("h3",{text:i.deleting?"Deleting":i.archived?"Archived":"Archive or delete"}),body);
+}
+
 /* ---------- phases: artifacts + links and files ---------- */
 function kindLabel(x){
   if(x.kind==="file") return "File"+(x.filename?` · ${x.filename}`:"");
@@ -648,7 +693,7 @@ async function putEdit(slug,mutate){
   cur.patch=cur.patch||{}; cur.artifacts=cur.artifacts||{};
   for(const k of ["decisions_add","attachments_add","attachments_remove"]) cur[k]=cur[k]||[];
   mutate(cur);
-  const empty=!cur.create&&!Object.keys(cur.patch).length&&!Object.keys(cur.artifacts).length&&!cur.decisions_add.length&&!cur.attachments_add.length&&!cur.attachments_remove.length;
+  const empty=!cur.create&&!cur.delete&&!Object.keys(cur.patch).length&&!Object.keys(cur.artifacts).length&&!cur.decisions_add.length&&!cur.attachments_add.length&&!cur.attachments_remove.length;
   const ref=db.doc("edits/"+slug);
   if(empty){await ref.delete();return;}
   await ref.set({...cur,slug,updatedAt:new Date().toISOString(),updatedBy:(await user?.id?.())||""});
@@ -708,6 +753,7 @@ function renderFeedback(){
     [el("tr",{},el("td",{colspan:"9",class:"note",text:fb.length?"No entries match.":"No feedback synced yet."}))]));
 }
 $("#fb-search").addEventListener("input",renderFeedback);
+$("#archived-toggle").addEventListener("click",()=>{showArchived=!showArchived;render();});
 
 /* ---------- new initiative ---------- */
 const slugify=s=>String(s||"").toLowerCase().trim().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,48);
