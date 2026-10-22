@@ -142,6 +142,9 @@ textarea{width:100%;min-height:72px;resize:vertical;line-height:1.45}
 .seg button{flex:1}
 .seg button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
 .new-panel{display:grid;gap:12px}
+.collect{display:grid;gap:8px}
+.collect .items li{grid-template-columns:minmax(0,1fr) auto;display:grid;gap:4px 12px;align-items:start;padding:8px 0;border-top:1px solid var(--line)}
+.collect .items li:first-child{border-top:none}
 .syncbar{display:flex;gap:8px 12px;align-items:center;flex-wrap:wrap;margin-top:8px;font-size:.86rem;color:var(--muted)}
 .syncbar details{width:100%}
 .syncbar summary{cursor:pointer}
@@ -226,6 +229,23 @@ textarea{width:100%;min-height:72px;resize:vertical;line-height:1.45}
       <a href="https://claude.ai/artifact/MVCedVjgWJ9WyywSWuRstp" target="_blank" rel="noopener">Add feedback on the Feedback Board</a>
     </div>
     <p class="note" id="fb-note"></p>
+    <div class="panel collect" id="collect">
+      <div class="phase-head"><h3>Ways to collect feedback</h3><button class="btn ghost small hidden" id="collect-add-btn" type="button">Add link</button></div>
+      <p class="note">Links to send users so they can give feedback: surveys, forms, a Slack channel. Responses still go into the Feedback Board.</p>
+      <ul class="items" id="collect-list"></ul>
+      <div class="attach-form hidden" id="collect-form">
+        <div class="form"><div class="row">
+          <label>Title<input type="text" id="collect-title" placeholder="e.g. Notebook API beta survey"></label>
+          <label class="wide-field">Link<input type="text" id="collect-url" placeholder="https://forms.gle/…"></label>
+        </div>
+        <label>Note (optional)<input type="text" id="collect-note" placeholder="Who it's for, or when to send it"></label>
+        <div class="actions">
+          <button class="btn small" id="collect-save" type="button">Save link</button>
+          <button class="btn ghost small" id="collect-cancel" type="button">Cancel</button>
+          <span class="status" id="collect-status" role="status"></span>
+        </div></div>
+      </div>
+    </div>
     <div class="fb-grid">
       <div class="panel"><h3>Top tags</h3><div id="tags" style="display:grid;gap:6px;margin-top:10px"></div></div>
       <div class="panel" style="display:grid;gap:10px">
@@ -358,7 +378,7 @@ function render(){
   if(!picked||!base(picked)) picked=(active[0]||inits[0]).slug;
   const notReady=active.filter(i=>!isReady(i)).length;
   $("#summary").textContent=`${active.length} active initiative${active.length===1?"":"s"}, ${notReady} not yet ready for ${notReady===1?"its":"their"} next phase. Synced from the repo ${snapAt?snapAt.slice(0,10):"—"}.`;
-  renderBanner(); renderSync(); renderPipe(active); renderAttn(active); renderRoadmap(inits); renderDetail(); renderFeedback();
+  renderBanner(); renderSync(); renderCollect(); renderPipe(active); renderAttn(active); renderRoadmap(inits); renderDetail(); renderFeedback();
 }
 function renderBanner(){
   const slugs=Object.keys(EDITS).filter(s=>base(s));
@@ -473,6 +493,59 @@ function renderDetail(){
   if(flashSlug===i.slug){box.classList.add("flash");setTimeout(()=>box.classList.remove("flash"),1500);flashSlug=null;}
   resolveNames();
 }
+/* ---------- ways to collect feedback ---------- */
+// Live on the page in feedback_links/<id>: {title, url, note, addedAt, addedBy}; no sync needed
+let LINKS=[],editingLink=null,confirmRemoveLink=null;
+function renderCollect(){
+  $("#collect-add-btn").classList.toggle("hidden",!(db&&canEdit)||!$("#collect-form").classList.contains("hidden"));
+  const list=$("#collect-list");
+  if(!LINKS.length){list.replaceChildren(el("li",{style:"display:block"},el("span",{class:"note",text:canEdit?"No links yet. Add a survey or form you send to users.":"No links yet."})));return;}
+  list.replaceChildren(...LINKS.map(l=>{
+    let host=""; try{host=new URL(l.url).hostname.replace(/^www\./,"");}catch(_){}
+    const copyBtn=el("button",{class:"btn ghost small",type:"button",onclick:async()=>{
+      try{await navigator.clipboard.writeText(l.url);copyBtn.textContent="Copied";}
+      catch(_){const r=document.createRange();r.selectNodeContents(urlText);const s=getSelection();s.removeAllRanges();s.addRange(r);copyBtn.textContent="Press Ctrl+C";}
+      setTimeout(()=>{copyBtn.textContent="Copy link";},1800);
+    }},"Copy link");
+    const urlText=el("span",{class:"meta",text:l.url,style:"user-select:all"});
+    return el("li",{},
+      el("div",{style:"display:grid;gap:2px;min-width:0"},
+        el("span",{class:"t",text:l.title}),urlText,l.note?el("span",{class:"meta",text:l.note}):null,
+        host?el("span",{class:"meta",text:host}):null),
+      el("div",{class:"actions",style:"justify-content:flex-end"},
+        /^https:\/\//.test(l.url)?el("a",{class:"btn small",href:l.url,target:"_blank",rel:"noopener",text:"Open"}):null,copyBtn,
+        canEdit?el("button",{class:"btn ghost small",type:"button",onclick:()=>openLinkForm(l)},"Edit"):null,
+        canEdit?(confirmRemoveLink===l.id
+          ?el("button",{class:"btn danger small",type:"button",onclick:()=>removeLink(l.id)},"Confirm remove")
+          :el("button",{class:"btn ghost small",type:"button",onclick:()=>{confirmRemoveLink=l.id;renderCollect();}},"Remove")):null));
+  }));
+}
+function openLinkForm(l){
+  editingLink=l||null;
+  $("#collect-title").value=l?l.title:""; $("#collect-url").value=l?l.url:""; $("#collect-note").value=l?(l.note||""):"";
+  $("#collect-save").textContent=l?"Save changes":"Save link"; $("#collect-status").textContent="";
+  $("#collect-form").classList.remove("hidden"); renderCollect(); $("#collect-title").focus();
+}
+function closeLinkForm(){editingLink=null;$("#collect-form").classList.add("hidden");renderCollect();}
+async function saveLink(){
+  const say=t=>{$("#collect-status").textContent=t;};
+  const title=$("#collect-title").value.trim(), url=$("#collect-url").value.trim(), note=$("#collect-note").value.trim();
+  if(!title){say("Give the link a title.");return;}
+  if(!/^https:\/\/\S+$/.test(url)){say("Paste a full link that starts with https://");return;}
+  const btn=$("#collect-save"); btn.disabled=true;
+  try{
+    const id=editingLink?editingLink.id:"L-"+Date.now().toString(36);
+    const uid=(await user?.id?.())||"";
+    await db.doc("feedback_links/"+id).set({title,url,note,addedAt:editingLink?.addedAt||new Date().toISOString(),addedBy:editingLink?.addedBy||uid,updatedAt:new Date().toISOString()});
+    closeLinkForm();
+  }catch(err){say(err&&err.code==="permission_denied"?"You don't have permission to change these links.":"Couldn't save. Try again.");}
+  finally{btn.disabled=false;}
+}
+async function removeLink(id){confirmRemoveLink=null;try{await db.doc("feedback_links/"+id).delete();}catch(_){renderCollect();}}
+$("#collect-add-btn").addEventListener("click",()=>openLinkForm(null));
+$("#collect-cancel").addEventListener("click",closeLinkForm);
+$("#collect-save").addEventListener("click",saveLink);
+
 /* ---------- sync now ---------- */
 // sync/request is written here; a scheduled task on the owner's computer runs the sync and writes sync/status
 let SYNC={request:null,status:null},syncSaying="";
@@ -834,6 +907,10 @@ render();
     for(const d of snap.docs){const v=d.data();S[d.id]=Array.isArray(v.rows)?v.rows:[];if(d.id==="initiatives") snapAt=v.exported_at||"";}
     loaded=true; render();
   },()=>{loaded=true;render();});
+  db.collection("feedback_links").onSnapshot(snap=>{
+    LINKS=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(a.addedAt).localeCompare(String(b.addedAt)));
+    renderCollect();
+  },()=>{});
   db.collection("sync").onSnapshot(snap=>{
     SYNC={request:null,status:null};
     for(const d of snap.docs) SYNC[d.id]=d.data();
