@@ -30,8 +30,10 @@ informs several initiatives and arrives before any initiative exists.
   customer's exact words, and suggests tags. The board is the source of truth.
 - **Initiative list on the board**: the board's initiative picker reads its `initiatives` collection (doc id = slug,
   `{name}`). When an initiative is created or renamed, write it there with `ArtifactData` so contributors can pick it.
-- **Snapshot** into this repo: export JSON from the board and save it as `feedback/library.json` (overwrite).
-  Commit it so Claude Code and `scripts/feedback.py` can search it offline.
+- **Snapshot** into this repo ("sync feedback"): read the board's `feedback` collection with `ArtifactData` `list`
+  (`out_dir` = `build/board-sync`), run `python scripts/sync_feedback.py build/board-sync` to rebuild
+  `feedback/library.json`, then refresh the Product Hub page. Commit it so `scripts/feedback.py` can search it offline.
+  (Manual fallback: the board's Export JSON button, saved over `feedback/library.json`.)
 - **Search**: `python scripts/feedback.py search <words> --tag <tag> --segment <seg> --type <type>`,
   `python scripts/feedback.py tags` for the tag list with counts, `python scripts/feedback.py show <ID>`.
 - **Use it in every phase** by citing entry IDs:

@@ -8,3 +8,4 @@ desktop.ini
 Thumbs.db
 # Claude Code local settings
 .claude/settings.local.json
+build/board-sync/

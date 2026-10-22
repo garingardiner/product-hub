@@ -1,16 +1,26 @@
 {
-  "exported_at": "2026-10-22T00:00:00Z",
-  "note": "EXAMPLE snapshot. Replace with an export from the Feedback Board.",
+  "exported_at": "2026-10-22T21:51:50Z",
+  "source": "Feedback Board (synced by Claude)",
   "count": 1,
   "entries": [
     {
-      "id": "F-261018-EXMP",
-      "quote": "We export each project by hand every quarter for the audit. It takes a full day.",
-      "summary": "Admin manually exports about 40 projects each quarter for audit.",
-      "type": "pain-point", "sentiment": "negative",
-      "tags": ["bulk-export", "audit-reporting"],
-      "source": "interview", "customer": "Example Co", "segment": "enterprise",
-      "date": "2026-10-18", "initiative": "2026-q4-example-bulk-export", "requirements": ["R-001"]
+      "id": "F-261022-K4FV",
+      "quote": "",
+      "summary": "The customer was very interested in nTop but needed the ability to create lofted segments and asked for a loft block they could use.",
+      "type": "feature-request",
+      "sentiment": "neutral",
+      "tags": [
+        "loft-block",
+        "lofted-segments",
+        "geometry-modeling"
+      ],
+      "source": "interview",
+      "customer": "ACME Aerospace",
+      "segment": "",
+      "date": "2026-10-22",
+      "initiative": "",
+      "requirements": [],
+      "createdAt": "2026-10-22T21:43:17.414Z"
     }
   ]
 }

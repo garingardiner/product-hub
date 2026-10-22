@@ -141,7 +141,7 @@
         <input id="ph-fb-search" class="ph-search" type="search" placeholder="Search quotes, customers, tags" aria-label="Search feedback">
         <div class="ph-scroll ph-feedback-table">
           <table class="ph-table ph-t-feedback" data-source="feedback" data-row-key="id">
-            <thead><tr><th data-field="date">Date</th><th data-field="id">ID</th><th data-field="customer">Customer</th><th data-field="segment">Segment</th><th data-field="type">Type</th><th data-field="quote">Quote</th><th data-field="tags">Tags</th><th data-field="initiative">Initiative</th></tr></thead>
+            <thead><tr><th data-field="date">Date</th><th data-field="id">ID</th><th data-field="customer">Customer</th><th data-field="contact">Contact</th><th data-field="segment">Segment</th><th data-field="type">Type</th><th data-field="quote">Quote</th><th data-field="summary">Summary</th><th data-field="tags">Tags</th><th data-field="initiative">Initiative</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -183,16 +183,16 @@
         <p class="ph-empty" hidden>No requirements yet.</p>
       </div>
 
-      <div class="ph-card" id="cited-feedback">
-        <h3>Cited feedback</h3>
-        <p class="ph-note">Library entries this initiative cites as evidence, with the hypotheses and requirements they bear on.</p>
+      <div class="ph-card" id="initiative-feedback">
+        <h3>Customer feedback</h3>
+        <p class="ph-note">Feedback Board entries linked to this initiative, and entries it cites as evidence. <a class="ph-board-link" href="https://claude.ai/artifact/MVCedVjgWJ9WyywSWuRstp" target="_blank" rel="noopener">Open the Feedback Board</a></p>
         <div class="ph-scroll">
-          <table class="ph-table ph-t-cited" data-source="cited" data-row-key="slug,id">
-            <thead><tr><th data-field="id">ID</th><th data-field="quote">Quote</th><th data-field="customer">Customer</th><th data-field="hypotheses">Hypotheses</th><th data-field="requirements">Requirements</th></tr></thead>
+          <table class="ph-table ph-t-initfb" data-source="initiative_feedback" data-row-key="slug,id">
+            <thead><tr><th data-field="date">Date</th><th data-field="id">ID</th><th data-field="customer">Customer</th><th data-field="contact">Contact</th><th data-field="type">Type</th><th data-field="feedback">Feedback</th><th data-field="cited_for">Evidence for</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
-        <p class="ph-empty" hidden>No feedback cited yet. Log it on the Feedback Board, export the snapshot, then link entries in this initiative's feedback.yaml.</p>
+        <p class="ph-empty" hidden>No feedback linked yet. On the Feedback Board, pick this initiative when adding an entry, or edit an existing one.</p>
       </div>
 
       <div class="ph-card" id="hypotheses">
@@ -257,15 +257,22 @@
     },
   });
 
-  dash.calc('cited', {
-    inputs: ['evidence', 'feedback'],
-    title: 'Cited feedback with quotes',
-    description: 'Each initiative’s cited library entries joined to the entry’s quote and customer.',
-    fn: (evidence, feedback) => evidence.filter((e) => e.id).map((e) => {
-      const f = feedback.find((x) => x.id === e.id) || {};
-      return { slug: e.slug, id: e.id, quote: f.quote || '', customer: f.customer || '',
-               hypotheses: e.hypotheses, requirements: e.requirements };
-    }),
+  dash.calc('initiative_feedback', {
+    inputs: ['feedback', 'evidence'],
+    title: 'Feedback by initiative',
+    description: 'Board entries linked to each initiative, plus entries an initiative cites as evidence, with what each is cited for.',
+    fn: (feedback, evidence) => {
+      const rows = new Map();
+      for (const f of feedback) if (f.initiative) rows.set(f.initiative + '|' + f.id, { slug: f.initiative, f });
+      for (const e of evidence.filter((x) => x.id)) {
+        rows.set(e.slug + '|' + e.id, { slug: e.slug, f: feedback.find((x) => x.id === e.id) || { id: e.id }, e });
+      }
+      return [...rows.values()].map(({ slug, f, e }) => ({
+        slug, id: f.id, date: f.date || '', customer: f.customer || '', contact: f.contact || '', type: f.type || '',
+        feedback: f.quote ? '“' + f.quote + '”' : (f.summary || ''),
+        cited_for: e ? ([e.hypotheses, e.requirements].filter(Boolean).join('; ') || 'Cited') : 'Linked, not cited yet',
+      })).sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    },
   });
 </script>
 
@@ -308,7 +315,7 @@
       td.className = 'ph-loc';
       const a = document.createElement('a'); a.href = text; a.target = '_blank'; a.rel = 'noopener'; a.textContent = text; td.append(a);
     } else {
-      if (field === 'quote') td.className = 'ph-quote';
+      if (field === 'quote' || field === 'feedback') td.className = 'ph-quote';
       if (CAP_FIELDS.has(field)) td.className = 'ph-cap';
       if (field === 'location') td.className = 'ph-loc';
       td.textContent = text;
@@ -421,7 +428,7 @@
     fillTable($('.ph-t-hyps'), 'hypotheses', of('hypotheses'), ['slug', 'id']);
     fillTable($('.ph-t-metrics'), 'metrics', of('metrics'), ['slug', 'name']);
     fillTable($('.ph-t-decisions'), 'decisions', of('decisions'), ['slug', 'decision']);
-    fillTable($('.ph-t-cited'), 'evidence', of('cited'), ['slug', 'id']);
+    fillTable($('.ph-t-initfb'), 'feedback', of('initiative_feedback'), ['slug', 'id']);
   }
 
   function drawFeedback() {
