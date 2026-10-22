@@ -62,6 +62,23 @@
   .ph-fail { display: flex; align-items: center; justify-content: center; gap: .4rem; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); min-height: 3rem; }
   .ph-fail::before { content: ""; width: .375rem; height: .375rem; border-radius: 50%; background: var(--color-bad); }
 
+  /* Customer feedback */
+  .ph-fb-bar { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm); align-items: baseline; justify-content: space-between; }
+  .ph-board-link { color: var(--color-fg); font-weight: var(--cds-font-weight-medium); text-decoration: underline; text-underline-offset: 3px; }
+  .ph-fb-warn { margin: 0; color: var(--color-warn); font-size: var(--cds-font-size-caption); }
+  .ph-fb-grid { display: grid; grid-template-columns: minmax(min(100%, 16rem), 1fr) minmax(min(100%, 30rem), 3fr); gap: var(--cds-gap-md); }
+  @media (max-width: 52rem) { .ph-fb-grid { grid-template-columns: 1fr; } }
+  .ph-tags { display: grid; gap: var(--cds-gap-xs); min-height: 3rem; }
+  .ph-tag-row { display: grid; grid-template-columns: minmax(0, 9rem) 1fr auto; gap: var(--cds-gap-sm); align-items: center; font-size: var(--cds-font-size-caption); }
+  .ph-tag-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ph-tag-track { height: .5rem; }
+  .ph-tag-fill { height: 100%; border-radius: 4px; background: var(--cds-chart-muted); min-width: 4px; }
+  .ph-tag-row:first-child .ph-tag-fill { background: var(--color-fg-muted); }
+  .ph-search { font: inherit; padding: var(--cds-pad-xs) var(--cds-pad-sm); border-radius: var(--cds-radius); border: 1px solid var(--color-border-line); background: var(--color-bg); color: var(--color-fg); width: min(100%, 20rem); }
+  .ph-feedback-table { max-height: 28rem; overflow: auto; }
+  .ph-feedback-table th { position: sticky; top: 0; background: var(--color-panel); }
+  .ph-quote { min-width: 16rem; max-width: 44ch; }
+
   [data-dash-source-state=empty] { color: transparent; }
   [data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
 </style>
@@ -106,6 +123,33 @@
     </div>
   </section>
 
+  <section class="ph-section" id="feedback">
+    <div class="ph-fb-bar">
+      <h2 style="margin:0;font-size:var(--cds-font-size-heading);font-weight:var(--cds-font-weight-medium)">Customer feedback</h2>
+      <a class="ph-board-link" href="https://claude.ai/artifact/MVCedVjgWJ9WyywSWuRstp" target="_blank" rel="noopener">Add feedback on the Feedback Board</a>
+    </div>
+    <p class="ph-note">The Feedback Board is the source of truth. This shows the snapshot exported on <span class="dash-skeleton" data-source="feedback_snapshot" data-field="exported_on" data-row="0">—</span>, with <span class="dash-skeleton" data-source="feedback_snapshot" data-field="entries" data-row="0">—</span> entries. Initiatives cite entries by ID.</p>
+    <p class="ph-fb-warn" data-source="feedback_snapshot" data-field="note" data-row="0"></p>
+    <div class="ph-fb-grid">
+      <div class="ph-card" id="feedback-tags">
+        <h3>Top tags</h3>
+        <p class="ph-note">Entries per topic tag.</p>
+        <div class="ph-tags dash-skeleton" data-source="tag_counts"></div>
+      </div>
+      <div class="ph-card" id="feedback-entries">
+        <h3>Entries</h3>
+        <input id="ph-fb-search" class="ph-search" type="search" placeholder="Search quotes, customers, tags" aria-label="Search feedback">
+        <div class="ph-scroll ph-feedback-table">
+          <table class="ph-table ph-t-feedback" data-source="feedback" data-row-key="id">
+            <thead><tr><th data-field="date">Date</th><th data-field="id">ID</th><th data-field="customer">Customer</th><th data-field="segment">Segment</th><th data-field="type">Type</th><th data-field="quote">Quote</th><th data-field="tags">Tags</th><th data-field="initiative">Initiative</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <p class="ph-empty" hidden>No feedback in the snapshot yet.</p>
+      </div>
+    </div>
+  </section>
+
   <section class="ph-section" id="detail">
     <div class="ph-detail-bar">
       <h2 style="margin:0;font-size:var(--cds-font-size-heading);font-weight:var(--cds-font-weight-medium)" class="ph-detail-name" data-source="initiatives" data-field="name">—</h2>
@@ -137,6 +181,18 @@
           </table>
         </div>
         <p class="ph-empty" hidden>No requirements yet.</p>
+      </div>
+
+      <div class="ph-card" id="cited-feedback">
+        <h3>Cited feedback</h3>
+        <p class="ph-note">Library entries this initiative cites as evidence, with the hypotheses and requirements they bear on.</p>
+        <div class="ph-scroll">
+          <table class="ph-table ph-t-cited" data-source="cited" data-row-key="slug,id">
+            <thead><tr><th data-field="id">ID</th><th data-field="quote">Quote</th><th data-field="customer">Customer</th><th data-field="hypotheses">Hypotheses</th><th data-field="requirements">Requirements</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <p class="ph-empty" hidden>No feedback cited yet. Log it on the Feedback Board, export the snapshot, then link entries in this initiative's feedback.yaml.</p>
       </div>
 
       <div class="ph-card" id="hypotheses">
@@ -188,6 +244,29 @@
       not_ready: initiatives.filter((i) => i.ready === 'Not ready').length,
     }],
   });
+
+  dash.calc('tag_counts', {
+    inputs: ['feedback'],
+    title: 'Entries per tag',
+    description: 'How many feedback entries carry each topic tag, most-used first.',
+    fn: (feedback) => {
+      const counts = {};
+      for (const f of feedback) for (const t of String(f.tags || '').split(', ').filter(Boolean)) counts[t] = (counts[t] || 0) + 1;
+      return Object.entries(counts).map(([tag, entries]) => ({ tag, entries }))
+        .sort((a, b) => b.entries - a.entries || a.tag.localeCompare(b.tag));
+    },
+  });
+
+  dash.calc('cited', {
+    inputs: ['evidence', 'feedback'],
+    title: 'Cited feedback with quotes',
+    description: 'Each initiative’s cited library entries joined to the entry’s quote and customer.',
+    fn: (evidence, feedback) => evidence.filter((e) => e.id).map((e) => {
+      const f = feedback.find((x) => x.id === e.id) || {};
+      return { slug: e.slug, id: e.id, quote: f.quote || '', customer: f.customer || '',
+               hypotheses: e.hypotheses, requirements: e.requirements };
+    }),
+  });
 </script>
 
 <script>
@@ -229,6 +308,7 @@
       td.className = 'ph-loc';
       const a = document.createElement('a'); a.href = text; a.target = '_blank'; a.rel = 'noopener'; a.textContent = text; td.append(a);
     } else {
+      if (field === 'quote') td.className = 'ph-quote';
       if (CAP_FIELDS.has(field)) td.className = 'ph-cap';
       if (field === 'location') td.className = 'ph-loc';
       td.textContent = text;
@@ -341,7 +421,50 @@
     fillTable($('.ph-t-hyps'), 'hypotheses', of('hypotheses'), ['slug', 'id']);
     fillTable($('.ph-t-metrics'), 'metrics', of('metrics'), ['slug', 'name']);
     fillTable($('.ph-t-decisions'), 'decisions', of('decisions'), ['slug', 'decision']);
+    fillTable($('.ph-t-cited'), 'evidence', of('cited'), ['slug', 'id']);
   }
+
+  function drawFeedback() {
+    const snap = ok('feedback_snapshot');
+    const s = snap && snap[0];
+    document.querySelectorAll('[data-source="feedback_snapshot"]').forEach((el) => {
+      el.classList.remove('dash-skeleton');
+      el.textContent = s ? String(s[el.dataset.field] ?? '') : (el.dataset.field === 'note' ? '' : '—');
+    });
+
+    const box = $('.ph-tags');
+    box.replaceChildren();
+    if (failed('feedback')) { const f = document.createElement('div'); f.className = 'ph-fail'; f.textContent = 'Failed to load'; box.append(f); box.classList.remove('dash-skeleton'); }
+    const tags = ok('tag_counts');
+    if (tags) {
+      box.classList.remove('dash-skeleton');
+      const max = d3.max(tags, (t) => t.entries) || 1;
+      if (!tags.length) { const p = document.createElement('p'); p.className = 'ph-empty'; p.textContent = 'No tags yet.'; box.append(p); }
+      for (const t of tags.slice(0, 12)) {
+        const row = document.createElement('div'); row.className = 'ph-tag-row';
+        const name = document.createElement('span'); name.className = 'ph-tag-name'; name.textContent = t.tag; name.title = t.tag;
+        const track = document.createElement('div'); track.className = 'ph-tag-track';
+        const fill = document.createElement('div'); fill.className = 'ph-tag-fill'; fill.style.width = (100 * t.entries / max) + '%';
+        track.append(fill);
+        const n = document.createElement('span'); n.textContent = d3.format(',')(t.entries);
+        row.append(name, track, n);
+        box.append(row);
+      }
+    }
+
+    const fb = ok('feedback');
+    fillTable($('.ph-t-feedback'), 'feedback', fb ? fb.slice().sort((a, b) => String(b.date).localeCompare(String(a.date))) : null, ['id']);
+    applySearch();
+  }
+
+  const search = $('#ph-fb-search');
+  function applySearch() {
+    const q = search.value.trim().toLowerCase();
+    $('.ph-t-feedback tbody').querySelectorAll('tr[data-key]').forEach((tr) => {
+      tr.hidden = !!q && !tr.textContent.toLowerCase().includes(q);
+    });
+  }
+  search.addEventListener('input', applySearch);
 
   $('.ph-pick').addEventListener('change', (e) => pick(e.target.value, false));
   $('.ph-roadmap').addEventListener('click', (e) => {
@@ -361,6 +484,7 @@
     drawAttention(inits);
     fillTable($('.ph-roadmap'), 'initiatives', inits ? sortInits(inits) : null, ['slug']);
     drawDetail(inits);
+    drawFeedback();
     if (inits && !linked) {
       linked = true;
       const named = location.hash && document.getElementById(location.hash.slice(1));

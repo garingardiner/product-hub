@@ -20,7 +20,21 @@ def text(v):
     return "" if v is None else str(v)
 
 def main():
-    rows = {k: [] for k in ("initiatives", "artifacts", "requirements", "hypotheses", "metrics", "decisions")}
+    rows = {k: [] for k in ("initiatives", "artifacts", "requirements", "hypotheses", "metrics", "decisions",
+                            "feedback", "evidence", "feedback_snapshot")}
+    lib_path = ROOT / "feedback" / "library.json"
+    lib = json.loads(lib_path.read_text(encoding="utf-8")) if lib_path.exists() else {}
+    for e in lib.get("entries") or []:
+        rows["feedback"].append({
+            "id": e.get("id"), "date": text(e.get("date")), "customer": text(e.get("customer")),
+            "segment": text(e.get("segment")), "type": text(e.get("type")), "sentiment": text(e.get("sentiment")),
+            "source": text(e.get("source")), "quote": text(e.get("quote")), "summary": text(e.get("summary")),
+            "tags": ", ".join(e.get("tags") or []), "initiative": text(e.get("initiative")),
+            "requirements": ", ".join(e.get("requirements") or []),
+        })
+    rows["feedback_snapshot"].append({
+        "exported_at": text(lib.get("exported_at")), "exported_on": text(lib.get("exported_at"))[:10], "entries": len(lib.get("entries") or []), "note": text(lib.get("note")),
+    })
     folders = sorted(p for p in (ROOT / "initiatives").iterdir()
                      if p.is_dir() and not p.name.startswith("_") and "example" not in p.name)
     for f in folders:
@@ -55,6 +69,20 @@ def main():
                 "slug": slug, "id": r.get("id"), "title": text(r.get("title")), "priority": text(r.get("priority")),
                 "status": text(r.get("status")), "evidence": len(r.get("evidence") or []),
             })
+        # Cited library entries, from feedback.yaml evidence and requirement evidence, merged per entry
+        cited = {}
+        for ev in fb.get("evidence") or []:
+            if isinstance(ev, dict) and ev.get("id"):
+                c = cited.setdefault(ev["id"], {"hypotheses": set(), "requirements": set(), "note": ""})
+                c["hypotheses"].update(ev.get("hypotheses") or [])
+                c["requirements"].update(ev.get("requirements") or [])
+                c["note"] = c["note"] or text(ev.get("note"))
+        for r in reqs:
+            for fid in r.get("evidence") or []:
+                cited.setdefault(fid, {"hypotheses": set(), "requirements": set(), "note": ""})["requirements"].add(r.get("id"))
+        for fid, c in sorted(cited.items()):
+            rows["evidence"].append({"slug": slug, "id": fid, "hypotheses": ", ".join(sorted(c["hypotheses"])),
+                                     "requirements": ", ".join(sorted(c["requirements"])), "note": c["note"]})
         for h in hyps:
             rows["hypotheses"].append({"slug": slug, "id": h.get("id"), "statement": text(h.get("statement")),
                                        "verdict": text(h.get("verdict") or "open")})
@@ -66,6 +94,10 @@ def main():
         for d in m.get("decisions") or []:
             rows["decisions"].append({"slug": slug, "date": text(d.get("date")), "decision": text(d.get("decision")),
                                       "by": text(d.get("by"))})
+    if not rows["evidence"]:
+        # The hub page treats a file with no rows as a failed load; this row has no id and the page skips it
+        rows["evidence"].append({"slug": "", "id": "", "hypotheses": "", "requirements": "",
+                                 "note": "Placeholder: no initiative cites feedback yet"})
     OUT.mkdir(parents=True, exist_ok=True)
     for name, data in rows.items():
         (OUT / f"{name}.json").write_text(json.dumps(data, indent=1, ensure_ascii=False), encoding="utf-8")

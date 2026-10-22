@@ -84,6 +84,8 @@ Allowed values for `form` in a manifest:
 - **Product Hub page** (read-only team view): https://claude.ai/artifact/51MGnyV844Q76BQEV1McRa (a Dashboard artifact).
   After manifests change, run `python scripts/export_hub.py`, upload each `build/hub/*.json` as an asset, and `update`
   the matching `datasets/<name>` document's `source.url` and `updated`. The YAML stays the source of truth.
+- **Git**: the repo is on GitHub at https://github.com/garingardiner/product-hub (private; may move to the nTopology org).
+  Commit and push after changing manifests or data. The working copy lives in Google Drive, so only one machine should push from it.
 - **Syncing to Asana**: scope items with `asana_task` empty get created as tasks; write the task link back to `scope.yaml`.
 
 ## Style
