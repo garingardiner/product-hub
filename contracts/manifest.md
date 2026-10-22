@@ -10,6 +10,7 @@ phase: discovery | feedback | spec | engineering | gtm | done | parked
 priority: P0 | P1 | P2
 owner: string                # PM
 team: Build | Analyze | Orchestrate
+size: Small | Medium | Large   # rough project size
 collaborators: { role: [names] }
 target_release: string       # optional, e.g. 2027-Q1
 blockers: [string]

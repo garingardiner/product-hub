@@ -5,6 +5,7 @@ phase: discovery
 priority: P2
 owner: ""
 team: ""
+size: ""
 collaborators:
   user_research: []
   ux: []

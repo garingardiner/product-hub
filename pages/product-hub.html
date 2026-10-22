@@ -173,6 +173,7 @@ textarea{width:100%;min-height:72px;resize:vertical;line-height:1.45}
         <label>Priority<select id="new-priority"><option>P0</option><option selected>P1</option><option>P2</option></select></label>
         <label>Owner<select id="new-owner"><option value="">Select an owner</option><option>Tristan Antonsen</option><option>Bryce Mazurowski</option><option>Patrick Ogdin</option></select></label>
         <label>Team<select id="new-team"><option value="">Select a team</option><option>Build</option><option>Analyze</option><option>Orchestrate</option></select></label>
+        <label>Size<select id="new-size"><option value="">Select a size</option><option>Small</option><option>Medium</option><option>Large</option></select></label>
         <label>Target<input type="text" id="new-target" placeholder="e.g. 2027-03"></label>
       </div>
       <label>Problem<textarea id="new-problem" placeholder="Who has the problem, and what it costs them today"></textarea></label>
@@ -199,7 +200,7 @@ textarea{width:100%;min-height:72px;resize:vertical;line-height:1.45}
   <section class="section" id="roadmap">
     <h2>Roadmap</h2>
     <div class="panel"><div class="scroll"><table class="roadmap" id="roadmap-table">
-      <thead><tr><th>Priority</th><th>Initiative</th><th>Phase</th><th>Owner</th><th>Target</th><th>Next gate</th><th class="num">Artifacts approved</th><th class="num">Blockers</th></tr></thead>
+      <thead><tr><th>Priority</th><th>Initiative</th><th>Phase</th><th>Owner</th><th>Size</th><th>Target</th><th>Next gate</th><th class="num">Artifacts approved</th><th class="num">Blockers</th></tr></thead>
       <tbody></tbody>
     </table></div></div>
   </section>
@@ -243,6 +244,7 @@ const TEMPLATE_ARTS=[["concept","claude-doc"],["feedback","data","feedback.yaml"
 const MAX_UPLOAD=20*1024*1024;
 const TEAMS=["Build","Analyze","Orchestrate"];   // keep in sync with TEAMS in scripts/apply_hub_edits.py
 const OWNERS=["Tristan Antonsen","Bryce Mazurowski","Patrick Ogdin"];   // keep in sync with OWNERS there
+const SIZES=["Small","Medium","Large"];   // keep in sync with SIZES there
 // A dropdown of fixed choices that still shows a current value outside the list
 const choiceSelect=(label,list,cur,onPick)=>el("label",{},label,el("select",{onchange:ev=>onPick(ev.target.value)},
   el("option",{value:"",text:`Select ${/^[aeiou]/i.test(label)?"an":"a"} ${label.toLowerCase()}`,selected:!cur}),
@@ -277,7 +279,7 @@ const pill=(v,cls)=>el("span",{class:"pill "+(cls??pillClass(v)),text:v});
 function base(slug){
   const r=rows("initiatives").find(r=>r.slug===slug); if(r) return r;
   const c=(EDITS[slug]||{}).create; if(!c) return null;
-  return {slug,name:c.name||slug,problem:c.problem||"",priority:c.priority||"P2",owner:c.owner||"",team:c.team||"",target:c.target_release||"",
+  return {slug,name:c.name||slug,problem:c.problem||"",priority:c.priority||"P2",owner:c.owner||"",team:c.team||"",size:c.size||"",target:c.target_release||"",
     phase:"discovery",blockers_list:[],gate_data:[],requirements:0,p0_requirements:0,open_hypotheses:0,_new:true};
 }
 function baseArts(slug){
@@ -296,7 +298,7 @@ function init(slug){
   const p=(EDITS[slug]||{}).patch||{};
   return {...b,
     name:p.name??b.name, problem:p.problem??b.problem, priority:p.priority??b.priority, owner:p.owner??b.owner,
-    team:p.team??b.team, target:p.target_release??b.target, phase:p.phase??b.phase,
+    team:p.team??b.team, size:p.size??(b.size||""), target:p.target_release??b.target, phase:p.phase??b.phase,
     blockers:p.blockers??(b.blockers_list||[])};
 }
 function arts(slug){
@@ -361,7 +363,7 @@ function renderRoadmap(inits){
     const a=arts(i.slug);
     return el("tr",{class:i.slug===picked?"on":"",onclick:()=>pick(i.slug,true)},
       el("td",{},pill(i.priority)),el("td",{},el("b",{text:i.name}),EDITS[i.slug]?[" ",pill(EDITS[i.slug].create&&i._new?"new, unsynced":"unsynced","pending")]:null),
-      el("td",{text:PHASE_NAME[i.phase]||i.phase}),el("td",{text:i.owner}),el("td",{text:i.target}),
+      el("td",{text:PHASE_NAME[i.phase]||i.phase}),el("td",{text:i.owner}),el("td",{text:i.size||"—"}),el("td",{text:i.target}),
       el("td",{},pill(isReady(i)?"Ready":"Not ready")),
       el("td",{class:"num",text:`${a.filter(x=>["approved","synthesized"].includes(x.status)).length} of ${a.length}`}),
       el("td",{class:"num",text:i.blockers.length}));
@@ -417,7 +419,7 @@ function renderDetail(){
   box.replaceChildren(head,pend,
     el("p",{class:"problem",text:i.problem}),
     el("div",{class:"facts"},
-      [["Owner",i.owner],["Team",i.team],["Target",i.target],["Requirements",`${b.requirements} (${b.p0_requirements} P0)`],["Open hypotheses",b.open_hypotheses]].map(([k,v])=>el("div",{class:"fact"},el("div",{class:"label",text:k}),el("div",{class:"v",text:v===""||v==null?"—":v})))),
+      [["Owner",i.owner],["Team",i.team],["Size",i.size],["Target",i.target],["Requirements",`${b.requirements} (${b.p0_requirements} P0)`],["Open hypotheses",b.open_hypotheses]].map(([k,v])=>el("div",{class:"fact"},el("div",{class:"label",text:k}),el("div",{class:"v",text:v===""||v==null?"—":v})))),
     gate,
     el("div",{class:"cards"},
       el("div",{class:"panel"},el("h3",{text:"Blockers"}),i.blockers.length?el("ul",{style:"margin:0;padding-left:1.1rem"},i.blockers.map(t=>el("li",{text:t}))):el("p",{class:"note",text:"No blockers."})),
@@ -559,7 +561,7 @@ function feedbackFor(slug){
 /* ---------- editing ---------- */
 function startEdit(slug){
   const i=init(slug), e=EDITS[slug]||{};
-  draft={slug,name:i.name,problem:i.problem,priority:i.priority,owner:i.owner,team:i.team,target:i.target,phase:i.phase,
+  draft={slug,name:i.name,problem:i.problem,priority:i.priority,owner:i.owner,team:i.team,size:i.size,target:i.target,phase:i.phase,
     blockers:[...i.blockers],art:Object.fromEntries(arts(slug).map(a=>[a.key,{status:a.status,owner:a.owner,link:a.location}])),
     decisions:[...(e.decisions_add||[])],newDec:{date:today(),decision:"",by:meName}};
   confirmDiscard=false; renderDetail();
@@ -600,7 +602,8 @@ function editForm(i,a){
   return el("div",{class:"form"},
     el("p",{class:"note",text:"Changes show on the page as soon as you save. Ask Claude to sync the hub to write them into the repo; phase moves are checked against the gate again then."}),
     el("div",{class:"row"},inp("name","Name"),el("label",{},"Priority",el("select",{onchange:ev=>{d.priority=ev.target.value}},["P0","P1","P2"].map(p=>el("option",{value:p,text:p,selected:d.priority===p})))),choiceSelect("Owner",OWNERS,d.owner,v=>{d.owner=v}),
-      choiceSelect("Team",TEAMS,d.team,v=>{d.team=v}),inp("target","Target",{placeholder:"e.g. 2027-01"})),
+      choiceSelect("Team",TEAMS,d.team,v=>{d.team=v}),
+      choiceSelect("Size",SIZES,d.size,v=>{d.size=v}),inp("target","Target",{placeholder:"e.g. 2027-01"})),
     el("label",{},"Problem",el("textarea",{oninput:ev=>{d.problem=ev.target.value}},d.problem||"")),
     phaseBox,
     el("div",{},el("p",{class:"label",style:"margin-bottom:6px",text:"Blockers"}),blkBox),
@@ -632,7 +635,7 @@ async function saveDraft(){
   const d=draft, b=base(d.slug), say=t=>{const s=$("#edit-status");if(s)s.textContent=t;};
   if(!d.name.trim()){say("Name is required.");return;}
   const patch={}, isNew=!!b._new;
-  const map={name:"name",problem:"problem",priority:"priority",owner:"owner",team:"team",target:"target_release"};
+  const map={name:"name",problem:"problem",priority:"priority",owner:"owner",team:"team",size:"size",target:"target_release"};
   const create=isNew?Object.fromEntries(Object.entries(map).map(([k,pk])=>[pk,String(d[k]??"").trim()])):null;
   if(!isNew) for(const [k,pk] of Object.entries(map)){const v=String(d[k]??"").trim();if(v!==String(b[k]??"")) patch[pk]=v;}
   const bl=d.blockers.map(s=>s.trim()).filter(Boolean);
@@ -705,9 +708,9 @@ $("#new-create").addEventListener("click",async()=>{
   const btn=$("#new-create"); btn.disabled=true;
   try{
     await putEdit(slug,cur=>{cur.create={name,problem:$("#new-problem").value.trim(),priority:$("#new-priority").value,
-      owner:$("#new-owner").value.trim(),team:$("#new-team").value.trim(),target_release:$("#new-target").value.trim()};});
+      owner:$("#new-owner").value.trim(),team:$("#new-team").value.trim(),size:$("#new-size").value,target_release:$("#new-target").value.trim()};});
     for(const id of ["#new-name","#new-problem","#new-target"]) $(id).value="";
-    $("#new-team").value=""; $("#new-owner").value="";
+    $("#new-team").value=""; $("#new-owner").value=""; $("#new-size").value="";
     $("#new-slug").textContent="—"; $("#new-panel").classList.add("hidden"); say("");
     picked=slug; flashSlug=slug; render(); $("#detail").scrollIntoView({behavior:"smooth",block:"start"});
   }catch(err){say(err&&err.code==="permission_denied"?"You don't have permission to add initiatives here.":"Couldn't create it. Try again.");}

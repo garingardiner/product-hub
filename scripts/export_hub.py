@@ -51,7 +51,8 @@ def main():
         rows["initiatives"].append({
             "slug": slug, "name": m.get("name", slug), "priority": m.get("priority", ""), "phase": phase,
             "phase_index": status.PHASES.index(phase) + 1 if phase in status.PHASES else None,
-            "owner": text(m.get("owner")), "team": text(m.get("team")), "target": text(m.get("target_release")),
+            "owner": text(m.get("owner")), "team": text(m.get("team")), "size": text(m.get("size")),
+            "target": text(m.get("target_release")),
             "problem": text(m.get("problem")),
             "ready": "n/a" if phase in ("done", "parked") else ("Ready" if not gate else "Not ready"),
             "gate_gaps": "; ".join(gate), "blockers": "; ".join(m.get("blockers") or []),
