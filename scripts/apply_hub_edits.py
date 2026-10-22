@@ -77,6 +77,9 @@ def apply_one(slug, data, yaml):
             if k == "owner" and v not in OWNERS:
                 msgs.append(f"{slug}: owner '{v}' not on the owner list; kept {doc.get('owner')}")
                 continue
+            if k == "target_release" and v and not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", v):
+                msgs.append(f"{slug}: target '{v}' isn't a month (YYYY-MM); kept {doc.get('target_release')}")
+                continue
             if k == "size" and v not in SIZES:
                 msgs.append(f"{slug}: size '{v}' not one of Small, Medium, Large; kept {doc.get('size')}")
                 continue

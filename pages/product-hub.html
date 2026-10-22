@@ -174,7 +174,7 @@ textarea{width:100%;min-height:72px;resize:vertical;line-height:1.45}
         <label>Owner<select id="new-owner"><option value="">Select an owner</option><option>Tristan Antonsen</option><option>Bryce Mazurowski</option><option>Patrick Ogdin</option></select></label>
         <label>Team<select id="new-team"><option value="">Select a team</option><option>Build</option><option>Analyze</option><option>Orchestrate</option></select></label>
         <label>Size<select id="new-size"><option value="">Select a size</option><option>Small</option><option>Medium</option><option>Large</option></select></label>
-        <label>Target<input type="text" id="new-target" placeholder="e.g. 2027-03"></label>
+        <label>Target<span id="new-target"></span></label>
       </div>
       <label>Problem<textarea id="new-problem" placeholder="Who has the problem, and what it costs them today"></textarea></label>
       <p class="note">Slug: <b id="new-slug">—</b></p>
@@ -245,6 +245,22 @@ const MAX_UPLOAD=20*1024*1024;
 const TEAMS=["Build","Analyze","Orchestrate"];   // keep in sync with TEAMS in scripts/apply_hub_edits.py
 const OWNERS=["Tristan Antonsen","Bryce Mazurowski","Patrick Ogdin"];   // keep in sync with OWNERS there
 const SIZES=["Small","Medium","Large"];   // keep in sync with SIZES there
+// Target release is stored as YYYY-MM; shown as "Jan 2027"
+const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const fmtTarget=v=>{const m=/^(\d{4})-(\d{2})$/.exec(v||"");return m?`${MONTHS[+m[2]-1]} ${m[1]}`:(v||"");};
+function monthPicker(cur,onChange){
+  const m=/^(\d{4})-(\d{2})$/.exec(cur||""); let y=m?m[1]:"", mo=m?m[2]:"";
+  const now=new Date().getFullYear(), years=[];
+  for(let k=now-1;k<=now+4;k++) years.push(String(k));
+  if(y&&!years.includes(y)) years.push(y);
+  const emit=()=>onChange(y&&mo?`${y}-${mo}`:"");
+  const ms=el("select",{"aria-label":"Target month",onchange:ev=>{mo=ev.target.value;emit();}},
+    el("option",{value:"",text:"Month",selected:!mo}),MONTHS.map((n,k)=>{const v=String(k+1).padStart(2,"0");return el("option",{value:v,text:n,selected:mo===v});}));
+  const ys=el("select",{"aria-label":"Target year",onchange:ev=>{y=ev.target.value;emit();}},
+    el("option",{value:"",text:"Year",selected:!y}),years.sort().map(v=>el("option",{value:v,text:v,selected:y===v})));
+  return el("span",{style:"display:flex;gap:6px"},ms,ys,
+    cur&&!m?el("span",{class:"note",style:"align-self:center",text:`Now: ${cur}`}):null);
+}
 // A dropdown of fixed choices that still shows a current value outside the list
 const choiceSelect=(label,list,cur,onPick)=>el("label",{},label,el("select",{onchange:ev=>onPick(ev.target.value)},
   el("option",{value:"",text:`Select ${/^[aeiou]/i.test(label)?"an":"a"} ${label.toLowerCase()}`,selected:!cur}),
@@ -363,7 +379,7 @@ function renderRoadmap(inits){
     const a=arts(i.slug);
     return el("tr",{class:i.slug===picked?"on":"",onclick:()=>pick(i.slug,true)},
       el("td",{},pill(i.priority)),el("td",{},el("b",{text:i.name}),EDITS[i.slug]?[" ",pill(EDITS[i.slug].create&&i._new?"new, unsynced":"unsynced","pending")]:null),
-      el("td",{text:PHASE_NAME[i.phase]||i.phase}),el("td",{text:i.owner}),el("td",{text:i.size||"—"}),el("td",{text:i.target}),
+      el("td",{text:PHASE_NAME[i.phase]||i.phase}),el("td",{text:i.owner}),el("td",{text:i.size||"—"}),el("td",{text:fmtTarget(i.target)}),
       el("td",{},pill(isReady(i)?"Ready":"Not ready")),
       el("td",{class:"num",text:`${a.filter(x=>["approved","synthesized"].includes(x.status)).length} of ${a.length}`}),
       el("td",{class:"num",text:i.blockers.length}));
@@ -419,7 +435,7 @@ function renderDetail(){
   box.replaceChildren(head,pend,
     el("p",{class:"problem",text:i.problem}),
     el("div",{class:"facts"},
-      [["Owner",i.owner],["Team",i.team],["Size",i.size],["Target",i.target],["Requirements",`${b.requirements} (${b.p0_requirements} P0)`],["Open hypotheses",b.open_hypotheses]].map(([k,v])=>el("div",{class:"fact"},el("div",{class:"label",text:k}),el("div",{class:"v",text:v===""||v==null?"—":v})))),
+      [["Owner",i.owner],["Team",i.team],["Size",i.size],["Target",fmtTarget(i.target)],["Requirements",`${b.requirements} (${b.p0_requirements} P0)`],["Open hypotheses",b.open_hypotheses]].map(([k,v])=>el("div",{class:"fact"},el("div",{class:"label",text:k}),el("div",{class:"v",text:v===""||v==null?"—":v})))),
     gate,
     el("div",{class:"cards"},
       el("div",{class:"panel"},el("h3",{text:"Blockers"}),i.blockers.length?el("ul",{style:"margin:0;padding-left:1.1rem"},i.blockers.map(t=>el("li",{text:t}))):el("p",{class:"note",text:"No blockers."})),
@@ -603,7 +619,8 @@ function editForm(i,a){
     el("p",{class:"note",text:"Changes show on the page as soon as you save. Ask Claude to sync the hub to write them into the repo; phase moves are checked against the gate again then."}),
     el("div",{class:"row"},inp("name","Name"),el("label",{},"Priority",el("select",{onchange:ev=>{d.priority=ev.target.value}},["P0","P1","P2"].map(p=>el("option",{value:p,text:p,selected:d.priority===p})))),choiceSelect("Owner",OWNERS,d.owner,v=>{d.owner=v}),
       choiceSelect("Team",TEAMS,d.team,v=>{d.team=v}),
-      choiceSelect("Size",SIZES,d.size,v=>{d.size=v}),inp("target","Target",{placeholder:"e.g. 2027-01"})),
+      choiceSelect("Size",SIZES,d.size,v=>{d.size=v}),
+      el("label",{},"Target",monthPicker(d.target,v=>{d.target=v}))),
     el("label",{},"Problem",el("textarea",{oninput:ev=>{d.problem=ev.target.value}},d.problem||"")),
     phaseBox,
     el("div",{},el("p",{class:"label",style:"margin-bottom:6px",text:"Blockers"}),blkBox),
@@ -694,6 +711,9 @@ function newSlug(){
   return n?`${d.getFullYear()}-q${Math.floor(d.getMonth()/3)+1}-${n}`:"";
 }
 $("#new-name").addEventListener("input",()=>{$("#new-slug").textContent=newSlug()||"—";});
+let newTarget="";
+const resetNewTarget=()=>{newTarget="";$("#new-target").replaceChildren(monthPicker("",v=>{newTarget=v;}));};
+resetNewTarget();
 $("#new-btn").addEventListener("click",()=>{
   $("#new-panel").classList.remove("hidden");
   if(!$("#new-owner").value&&OWNERS.includes(meName)) $("#new-owner").value=meName;
@@ -708,8 +728,9 @@ $("#new-create").addEventListener("click",async()=>{
   const btn=$("#new-create"); btn.disabled=true;
   try{
     await putEdit(slug,cur=>{cur.create={name,problem:$("#new-problem").value.trim(),priority:$("#new-priority").value,
-      owner:$("#new-owner").value.trim(),team:$("#new-team").value.trim(),size:$("#new-size").value,target_release:$("#new-target").value.trim()};});
-    for(const id of ["#new-name","#new-problem","#new-target"]) $(id).value="";
+      owner:$("#new-owner").value.trim(),team:$("#new-team").value.trim(),size:$("#new-size").value,target_release:newTarget};});
+    for(const id of ["#new-name","#new-problem"]) $(id).value="";
+    resetNewTarget();
     $("#new-team").value=""; $("#new-owner").value=""; $("#new-size").value="";
     $("#new-slug").textContent="—"; $("#new-panel").classList.add("hidden"); say("");
     picked=slug; flashSlug=slug; render(); $("#detail").scrollIntoView({behavior:"smooth",block:"start"});

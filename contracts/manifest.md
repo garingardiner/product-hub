@@ -12,7 +12,7 @@ owner: string                # PM
 team: Build | Analyze | Orchestrate
 size: Small | Medium | Large   # rough project size
 collaborators: { role: [names] }
-target_release: string       # optional, e.g. 2027-Q1
+target_release: string       # optional month, YYYY-MM (e.g. 2027-01)
 blockers: [string]
 decisions:                   # short decision log
   - { date: YYYY-MM-DD, decision: string, by: string }
