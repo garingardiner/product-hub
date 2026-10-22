@@ -1,5 +1,5 @@
 {
-  "exported_at": "2026-10-22T21:51:50Z",
+  "exported_at": "2026-10-22T21:54:04Z",
   "source": "Feedback Board (synced by Claude)",
   "count": 1,
   "entries": [
@@ -18,9 +18,10 @@
       "customer": "ACME Aerospace",
       "segment": "",
       "date": "2026-10-22",
-      "initiative": "",
+      "initiative": "2026-q4-loft-block",
       "requirements": [],
-      "createdAt": "2026-10-22T21:43:17.414Z"
+      "createdAt": "2026-10-22T21:43:17.414Z",
+      "updatedAt": "2026-10-22T22:00:00Z"
     }
   ]
 }
