@@ -1,8 +1,28 @@
 {
-  "exported_at": "2026-10-22T21:54:04Z",
+  "exported_at": "2026-10-22T23:10:22Z",
   "source": "Feedback Board (synced by Claude)",
-  "count": 1,
+  "count": 2,
   "entries": [
+    {
+      "id": "F-261022-Y7NY",
+      "quote": "We here at Planes r Us need to automate things as much as we can and would love to play with the Notebook API when its available.",
+      "summary": "The customer wants to automate their workflows and is eager to use the Notebook API once it becomes available.",
+      "type": "feature-request",
+      "sentiment": "positive",
+      "tags": [
+        "notebook-api",
+        "automation"
+      ],
+      "source": "interview",
+      "customer": "Planes r Us",
+      "contact": "",
+      "segment": "aerospace",
+      "date": "2026-10-22",
+      "initiative": "2026-q4-notebook-api",
+      "requirements": [],
+      "createdAt": "2026-10-22T22:09:44.098Z",
+      "updatedAt": "2026-10-22T22:11:36.855Z"
+    },
     {
       "id": "F-261022-K4FV",
       "quote": "",
@@ -10,18 +30,17 @@
       "type": "feature-request",
       "sentiment": "neutral",
       "tags": [
-        "loft-block",
-        "lofted-segments",
-        "geometry-modeling"
+        "loft-block"
       ],
       "source": "interview",
       "customer": "ACME Aerospace",
+      "contact": "",
       "segment": "",
       "date": "2026-10-22",
       "initiative": "2026-q4-loft-block",
       "requirements": [],
       "createdAt": "2026-10-22T21:43:17.414Z",
-      "updatedAt": "2026-10-22T22:00:00Z"
+      "updatedAt": "2026-10-22T22:08:17.927Z"
     }
   ]
 }
