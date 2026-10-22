@@ -103,7 +103,16 @@ Allowed values for `form` in a manifest:
        source, date on top), then `python scripts/record_source.py <slug> <id> --summary "<one line>" [--file files/<filename>]`.
        If a link can't be read (no access, connector missing), say so and leave it `read: false`.
     4. `python scripts/status.py`; refresh the snapshot; `delete` each applied `edits/<slug>` at its version in
-       `applied.json`; commit and push.- **Git**: the repo is on GitHub at https://github.com/garingardiner/product-hub (private; may move to the nTopology org).
+       `applied.json`; commit and push.
+  - **Scheduled sync** (the page's Sync now button; a scheduled task checks every 15 minutes):
+    1. `ArtifactData` `get` `sync/request` and `sync/status` on the hub. If there's no request, or
+       `request.requestedAt` is not later than `status.lastRunAt`, stop here and do nothing else.
+    2. Run **Sync hub** above with `--skip-deletes`, then **sync feedback** (Customer feedback library section).
+       Never delete an initiative in a scheduled run: deletes stay pending until the user confirms them in chat.
+    3. `set` `sync/status` to `{lastRunAt, lastSyncedAt (now, ISO UTC), messages: [every line the scripts printed that
+       the user should see, plus anything that couldn't be read], heldDeletes: held_deletes from applied.json}`,
+       then `delete` `sync/request` at the version you read. If a step fails, still write `sync/status` with
+       `lastRunAt` and the error in `messages`, and leave `lastSyncedAt` as it was.- **Git**: the repo is on GitHub at https://github.com/garingardiner/product-hub (private; may move to the nTopology org).
   Commit and push after changing manifests or data. The working copy lives in Google Drive, so only one machine should push from it.
 - **Syncing to Asana**: scope items with `asana_task` empty get created as tasks; write the task link back to `scope.yaml`.
 

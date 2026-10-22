@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Apply edits made on the Product Hub page to initiative manifests ("sync hub").
 
-Usage: python scripts/apply_hub_edits.py <dir>    (requires: pip install pyyaml ruamel.yaml)
+Usage: python scripts/apply_hub_edits.py <dir> [--skip-deletes]    (requires: pip install pyyaml ruamel.yaml)
+--skip-deletes leaves delete requests pending (for the unattended scheduled sync) and lists them in applied.json.
 <dir> holds the hub's `edits` documents as saved by ArtifactData `list` with `out_dir`
 (<dir>/edits/<slug>.json, each {"id", "version", "data": {create, patch, artifacts, decisions_add,
 attachments_add, attachments_remove}}).
@@ -198,22 +199,30 @@ def apply_one(slug, data, yaml):
     return True, msgs, to_read
 
 def main():
-    if len(sys.argv) != 2:
+    args = [a for a in sys.argv[1:] if a != "--skip-deletes"]
+    skip_deletes = "--skip-deletes" in sys.argv[1:]
+    if len(args) != 1:
         sys.exit(__doc__)
-    src = Path(sys.argv[1])
+    src = Path(args[0])
     yaml = YAML()
     yaml.preserve_quotes = True
     yaml.width = 4096
-    applied, to_read = [], []
+    applied, to_read, held = [], [], []
     for p in sorted((src / "edits").glob("*.json")):
         d = json.loads(p.read_text(encoding="utf-8"))
-        ok, msgs, reads = apply_one(d.get("id") or p.stem, d.get("data") or {}, yaml)
+        data = d.get("data") or {}
+        if skip_deletes and data.get("delete"):
+            held.append(d.get("id") or p.stem)
+            print(f"{d.get('id') or p.stem}: delete held for confirmation in chat")
+            continue
+        ok, msgs, reads = apply_one(d.get("id") or p.stem, data, yaml)
         print("\n".join(msgs))
         if ok:
             applied.append({"id": d.get("id") or p.stem, "version": d.get("version")})
             to_read += reads
-    (src / "applied.json").write_text(json.dumps({"applied": applied, "to_read": to_read}, indent=1), encoding="utf-8")
-    print(f"{len(applied)} edit document(s) applied; {len(to_read)} attachment(s) to read")
+    (src / "applied.json").write_text(json.dumps({"applied": applied, "to_read": to_read, "held_deletes": held}, indent=1),
+                                      encoding="utf-8")
+    print(f"{len(applied)} edit document(s) applied; {len(to_read)} attachment(s) to read; {len(held)} delete(s) held")
 
 if __name__ == "__main__":
     main()

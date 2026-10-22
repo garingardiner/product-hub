@@ -90,7 +90,7 @@ def main():
                  else ("✅ yes" if not gate else "❌ " + "; ".join(gate)))
         out.append(f"| {pri} | [{m.get('name')}](initiatives/{m.get('slug')}/initiative.yaml) | {m.get('phase')} | "
                    f"{m.get('owner', '')} | {m.get('target_release', '')} | {ready} | {'; '.join(m.get('blockers') or []) or '—'} |")
-    (ROOT / "ROADMAP.md").write_text("\n".join(out) + "\n", encoding="utf-8")
+    (ROOT / "ROADMAP.md").write_text("\n".join(out) + "\n", encoding="utf-8", newline="\n")
     print(f"ROADMAP.md updated ({len(rows)} initiatives)")
     sys.exit(1 if failed else 0)
 

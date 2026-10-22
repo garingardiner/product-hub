@@ -29,7 +29,7 @@ def main():
     entries.sort(key=lambda e: (e.get("date") or "", e.get("createdAt") or ""), reverse=True)
     out = {"exported_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
            "source": "Feedback Board (synced by Claude)", "count": len(entries), "entries": entries}
-    LIB.write_text(json.dumps(out, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    LIB.write_text(json.dumps(out, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
     print(f"feedback/library.json: {len(entries)} entries")
 
 if __name__ == "__main__":

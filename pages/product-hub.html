@@ -142,6 +142,10 @@ textarea{width:100%;min-height:72px;resize:vertical;line-height:1.45}
 .seg button{flex:1}
 .seg button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
 .new-panel{display:grid;gap:12px}
+.syncbar{display:flex;gap:8px 12px;align-items:center;flex-wrap:wrap;margin-top:8px;font-size:.86rem;color:var(--muted)}
+.syncbar details{width:100%}
+.syncbar summary{cursor:pointer}
+.syncbar ul{margin:4px 0 0;padding-left:1.1rem}
 
 /* Feedback */
 .fb-grid{display:grid;grid-template-columns:minmax(min(100%,15rem),1fr) minmax(min(100%,30rem),3fr);gap:14px}
@@ -158,6 +162,7 @@ textarea{width:100%;min-height:72px;resize:vertical;line-height:1.45}
     <div>
       <h1>Product Hub</h1>
       <p class="sub" id="summary">Loading…</p>
+      <div class="syncbar" id="syncbar"></div>
     </div>
     <nav class="toplinks" style="align-items:center">
       <a href="https://claude.ai/artifact/MVCedVjgWJ9WyywSWuRstp" target="_blank" rel="noopener">Feedback Board</a>
@@ -353,14 +358,14 @@ function render(){
   if(!picked||!base(picked)) picked=(active[0]||inits[0]).slug;
   const notReady=active.filter(i=>!isReady(i)).length;
   $("#summary").textContent=`${active.length} active initiative${active.length===1?"":"s"}, ${notReady} not yet ready for ${notReady===1?"its":"their"} next phase. Synced from the repo ${snapAt?snapAt.slice(0,10):"—"}.`;
-  renderBanner(); renderPipe(active); renderAttn(active); renderRoadmap(inits); renderDetail(); renderFeedback();
+  renderBanner(); renderSync(); renderPipe(active); renderAttn(active); renderRoadmap(inits); renderDetail(); renderFeedback();
 }
 function renderBanner(){
   const slugs=Object.keys(EDITS).filter(s=>base(s));
   const b=$("#pending-banner");
   b.classList.toggle("hidden",!slugs.length);
   if(!slugs.length) return;
-  b.replaceChildren(el("b",{text:`${slugs.length} initiative${slugs.length===1?" has":"s have"} unsynced edits`})," (",slugs.map(s=>init(s).name).join(", "),"). They show here now; ask Claude to ",el("b",{text:"sync hub"})," to write them into the repo.");
+  b.replaceChildren(el("b",{text:`${slugs.length} initiative${slugs.length===1?" has":"s have"} unsynced edits`})," (",slugs.map(s=>init(s).name).join(", "),"). They show here now; click ",el("b",{text:"Sync now"})," at the top, or ask Claude to sync the hub, to write them into the repo.");
 }
 function renderPipe(inits){
   $("#pipe").replaceChildren(...PHASES.map((p,i)=>el("div",{class:"col",id:"phase-"+p},
@@ -468,6 +473,34 @@ function renderDetail(){
   if(flashSlug===i.slug){box.classList.add("flash");setTimeout(()=>box.classList.remove("flash"),1500);flashSlug=null;}
   resolveNames();
 }
+/* ---------- sync now ---------- */
+// sync/request is written here; a scheduled task on the owner's computer runs the sync and writes sync/status
+let SYNC={request:null,status:null},syncSaying="";
+const fmtTime=iso=>{const d=new Date(iso);return isNaN(d)?"":d.toLocaleString([], {month:"short",day:"numeric",hour:"numeric",minute:"2-digit"});};
+function renderSync(){
+  const box=$("#syncbar"); if(!db){box.replaceChildren();return;}
+  const st=SYNC.status||{}, rq=SYNC.request;
+  const waiting=rq&&(!st.lastRunAt||rq.requestedAt>st.lastRunAt);
+  const pending=Object.keys(EDITS).length;
+  const parts=[];
+  parts.push(el("span",{text:st.lastSyncedAt?`Last synced ${fmtTime(st.lastSyncedAt)}`:"Not synced from this page yet"}));
+  if(waiting) parts.push(pill(`Sync requested ${fmtTime(rq.requestedAt)} · runs at the next check (every 15 min)`,"pending"));
+  else if(pending) parts.push(el("span",{text:`${pending} initiative${pending===1?"":"s"} with unsynced edits`}));
+  if(canEdit&&!waiting) parts.push(el("button",{class:"btn small",type:"button",id:"sync-now",onclick:requestSync},"Sync now"));
+  if(syncSaying) parts.push(el("span",{text:syncSaying}));
+  const held=st.heldDeletes||[], msgs=st.messages||[];
+  if(held.length) parts.push(el("span",{class:"pill bad",text:`${held.length} delete${held.length===1?"":"s"} waiting for confirmation in chat with Claude`}));
+  if(msgs.length) parts.push(el("details",{},el("summary",{text:`Notes from the last sync (${msgs.length})`}),el("ul",{},msgs.map(m=>el("li",{text:m})))));
+  box.replaceChildren(...parts);
+}
+async function requestSync(){
+  try{
+    await db.doc("sync/request").set({requestedAt:new Date().toISOString(),requestedBy:(await user?.id?.())||""});
+    syncSaying="";
+  }catch(err){syncSaying=err&&err.code==="permission_denied"?"You don't have permission to sync this hub.":"Couldn't request a sync. Try again.";}
+  renderSync();
+}
+
 /* ---------- archive / delete ---------- */
 function lifecyclePanel(i){
   const b=base(i.slug), isNew=!!b._new;
@@ -801,10 +834,15 @@ render();
     for(const d of snap.docs){const v=d.data();S[d.id]=Array.isArray(v.rows)?v.rows:[];if(d.id==="initiatives") snapAt=v.exported_at||"";}
     loaded=true; render();
   },()=>{loaded=true;render();});
+  db.collection("sync").onSnapshot(snap=>{
+    SYNC={request:null,status:null};
+    for(const d of snap.docs) SYNC[d.id]=d.data();
+    renderSync();
+  },()=>{});
   db.collection("edits").onSnapshot(snap=>{
     for(const k of Object.keys(EDITS)) delete EDITS[k];
     for(const d of snap.docs) EDITS[d.id]=d.data();
-    if(!draft) render(); else {renderBanner();}
+    if(!draft) render(); else {renderBanner();renderSync();}
   },()=>{});
 })();
 </script>
