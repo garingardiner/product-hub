@@ -21,4 +21,16 @@ artifacts:
     link: string             # for everything else
     status: not-started | draft | in-review | approved | synthesized | superseded
     owner: string
+attachments:                 # links and files added per phase (usually from the Product Hub page)
+  - id: A-YYMMDD-XXXX
+    phase: discovery | feedback | spec | engineering | gtm
+    title: string
+    kind: link | file
+    link: string             # kind link (Google Drive, Figma, any https URL)
+    asset: string            # kind file: the hub's uploaded-file id; filename: original name
+    file: string             # kind file: where the original was saved, e.g. files/notes.pdf
+    use_as: string           # optional artifact key it fills (sets that artifact's link or path)
+    read: bool               # true once Claude has read it
+    source: string           # extracted text, e.g. sources/A-261022-AB12.md
+    summary: string          # one line on what it says
 ```

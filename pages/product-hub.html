@@ -119,6 +119,26 @@ textarea{width:100%;min-height:72px;resize:vertical;line-height:1.45}
 .status{font-size:.86rem;color:var(--muted);min-height:1.2em}
 .pend-row td{color:var(--pending)}
 
+/* Phases card */
+.phases{grid-column:1/-1}
+.phase-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr));gap:10px}
+.phase{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;gap:8px;align-content:start;min-width:0;background:var(--sunk)}
+.phase.current{border-color:var(--accent);background:var(--surface)}
+.phase-head{display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap}
+.items{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.items li{display:grid;gap:2px;min-width:0}
+.items .row1{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.items .t{font-weight:600;overflow-wrap:anywhere}
+.items .meta{color:var(--muted);font-size:.8rem;overflow-wrap:anywhere}
+.items .sum{font-size:.86rem}
+.attach-form{display:grid;gap:8px;border-top:1px solid var(--line);padding-top:8px}
+.attach-form label{display:grid;gap:3px;font-size:.82rem;font-weight:600}
+.attach-form input[type=text],.attach-form select{width:100%}
+.seg{display:flex;gap:4px}
+.seg button{flex:1}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.new-panel{display:grid;gap:12px}
+
 /* Feedback */
 .fb-grid{display:grid;grid-template-columns:minmax(min(100%,15rem),1fr) minmax(min(100%,30rem),3fr);gap:14px}
 @media (max-width:820px){.fb-grid{grid-template-columns:1fr}}
@@ -135,13 +155,35 @@ textarea{width:100%;min-height:72px;resize:vertical;line-height:1.45}
       <h1>Product Hub</h1>
       <p class="sub" id="summary">Loading…</p>
     </div>
-    <nav class="toplinks">
+    <nav class="toplinks" style="align-items:center">
       <a href="https://claude.ai/artifact/MVCedVjgWJ9WyywSWuRstp" target="_blank" rel="noopener">Feedback Board</a>
       <a href="https://github.com/garingardiner/product-hub" target="_blank" rel="noopener">GitHub repo</a>
+      <button class="btn hidden" id="new-btn" type="button">New initiative</button>
     </nav>
   </header>
 
   <div class="banner hidden" id="pending-banner" role="status"></div>
+
+  <section class="panel new-panel hidden" id="new-panel" aria-labelledby="new-title">
+    <h2 id="new-title">New initiative</h2>
+    <p class="note">It shows on this page as soon as you create it. At the next sync, Claude creates its folder in the repo from the template and adds it to the Feedback Board's initiative list.</p>
+    <div class="form">
+      <div class="row">
+        <label>Name<input type="text" id="new-name" placeholder="e.g. Loft Block"></label>
+        <label>Priority<select id="new-priority"><option>P0</option><option selected>P1</option><option>P2</option></select></label>
+        <label>Owner<input type="text" id="new-owner"></label>
+        <label>Team<input type="text" id="new-team" placeholder="e.g. Build Team"></label>
+        <label>Target<input type="text" id="new-target" placeholder="e.g. 2027-03"></label>
+      </div>
+      <label>Problem<textarea id="new-problem" placeholder="Who has the problem, and what it costs them today"></textarea></label>
+      <p class="note">Slug: <b id="new-slug">—</b></p>
+      <div class="actions">
+        <button class="btn" id="new-create" type="button">Create initiative</button>
+        <button class="btn ghost" id="new-cancel" type="button">Cancel</button>
+        <span class="status" id="new-status" role="status"></span>
+      </div>
+    </div>
+  </section>
 
   <section class="section" id="pipeline">
     <h2>Phase pipeline</h2>
@@ -195,10 +237,13 @@ const GATES={discovery:{concept:["approved"]},feedback:{feedback:["synthesized",
 const STATUSES=["not-started","draft","in-review","approved","synthesized","superseded"];
 const ART_LABEL={concept:"Concept",feedback:"Feedback",project_spec:"Project spec",ux_spec:"UX spec",success_metrics:"Success metrics",engineering_scope:"Engineering scope",feature_benefits:"Feature/Benefits"};
 const SEG={aerospace:"Aerospace",automotive:"Automotive",power:"Power"};
-const BASIC=[["name","Name"],["priority","Priority"],["owner","Owner"],["team","Team"],["target","Target"]];
+const PHASE_ARTS={discovery:["concept"],feedback:["feedback"],spec:["project_spec","ux_spec","success_metrics"],engineering:["engineering_scope"],gtm:["feature_benefits"]};
+// Mirrors initiatives/_template/initiative.yaml, for initiatives created here and not synced yet
+const TEMPLATE_ARTS=[["concept","claude-doc"],["feedback","data","feedback.yaml"],["project_spec","claude-doc"],["ux_spec","figma"],["success_metrics","data","metrics.yaml"],["engineering_scope","data","scope.yaml"],["feature_benefits","claude-artifact"]];
+const MAX_UPLOAD=20*1024*1024;
 
 /* ---------- state ---------- */
-let db=null,user=null,canEdit=false,meName="";
+let db=null,user=null,assets=null,canEdit=false,meName="",addingFor=null;
 const S={};            // snapshot name -> rows
 let snapAt="",loaded=false;
 const EDITS={};        // slug -> {patch, artifacts, decisions_add, updatedAt, updatedBy}
@@ -223,7 +268,23 @@ const pillClass=v=>({approved:"ok",synthesized:"ok",supported:"ok","in-scope":"o
 const pill=(v,cls)=>el("span",{class:"pill "+(cls??pillClass(v)),text:v});
 
 /* ---------- merged view: snapshot + pending edits ---------- */
-function base(slug){return rows("initiatives").find(r=>r.slug===slug);}
+function base(slug){
+  const r=rows("initiatives").find(r=>r.slug===slug); if(r) return r;
+  const c=(EDITS[slug]||{}).create; if(!c) return null;
+  return {slug,name:c.name||slug,problem:c.problem||"",priority:c.priority||"P2",owner:c.owner||"",team:c.team||"",target:c.target_release||"",
+    phase:"discovery",blockers_list:[],gate_data:[],requirements:0,p0_requirements:0,open_hypotheses:0,_new:true};
+}
+function baseArts(slug){
+  const r=rows("artifacts").filter(a=>a.slug===slug);
+  if(r.length||!(EDITS[slug]||{}).create) return r;
+  return TEMPLATE_ARTS.map(([key,form,path])=>({slug,key,artifact:ART_LABEL[key],form,status:"not-started",owner:"",location:path||""}));
+}
+function atts(slug){
+  const e=EDITS[slug]||{}, rm=new Set(e.attachments_remove||[]);
+  return rows("attachments").filter(a=>a.slug===slug&&!rm.has(a.id))
+    .concat((e.attachments_add||[]).map(a=>({...a,link:a.url||"",asset:a.asset_id||"",pending:true})));
+}
+const allSlugs=()=>[...new Set(rows("initiatives").map(r=>r.slug).concat(Object.keys(EDITS).filter(s=>EDITS[s].create)))];
 function init(slug){
   const b=base(slug); if(!b) return null;
   const p=(EDITS[slug]||{}).patch||{};
@@ -234,7 +295,7 @@ function init(slug){
 }
 function arts(slug){
   const ch=(EDITS[slug]||{}).artifacts||{};
-  return rows("artifacts").filter(a=>a.slug===slug).map(a=>{const c=ch[a.key]||{};return {...a,status:c.status??a.status,owner:c.owner??a.owner,location:c.link??a.location,pending:!!Object.keys(c).length};});
+  return baseArts(slug).map(a=>{const c=ch[a.key]||{};return {...a,status:c.status??a.status,owner:c.owner??a.owner,location:c.link??a.location,pending:!!Object.keys(c).length};});
 }
 function gaps(slug,phase,artList){
   const b=base(slug), req=GATES[phase]||{}, out=[];
@@ -243,7 +304,7 @@ function gaps(slug,phase,artList){
   return out;
 }
 const sortInits=list=>list.slice().sort((a,b)=>String(a.priority).localeCompare(String(b.priority))||PHASES.indexOf(b.phase)-PHASES.indexOf(a.phase));
-const allInits=()=>sortInits(rows("initiatives").map(r=>init(r.slug)));
+const allInits=()=>sortInits(allSlugs().map(init).filter(Boolean));
 const isReady=i=>gaps(i.slug,i.phase,arts(i.slug)).length===0;
 
 /* ---------- render ---------- */
@@ -293,7 +354,7 @@ function renderRoadmap(inits){
   $("#roadmap-table tbody").replaceChildren(...inits.map(i=>{
     const a=arts(i.slug);
     return el("tr",{class:i.slug===picked?"on":"",onclick:()=>pick(i.slug,true)},
-      el("td",{},pill(i.priority)),el("td",{},el("b",{text:i.name}),EDITS[i.slug]?[" ",pill("unsynced","pending")]:null),
+      el("td",{},pill(i.priority)),el("td",{},el("b",{text:i.name}),EDITS[i.slug]?[" ",pill(EDITS[i.slug].create&&i._new?"new, unsynced":"unsynced","pending")]:null),
       el("td",{text:PHASE_NAME[i.phase]||i.phase}),el("td",{text:i.owner}),el("td",{text:i.target}),
       el("td",{},pill(isReady(i)?"Ready":"Not ready")),
       el("td",{class:"num",text:`${a.filter(x=>["approved","synthesized"].includes(x.status)).length} of ${a.length}`}),
@@ -333,11 +394,12 @@ function renderDetail(){
       canEdit&&!draft?el("button",{class:"btn",type:"button",onclick:()=>startEdit(i.slug)},"Edit initiative"):null));
   if(draft){box.replaceChildren(head,editForm(i,a));return;}
 
+  const isNew=!!b._new;
   const pend=e?el("div",{class:"banner"},
-    el("b",{text:"Unsynced edits"}),` by `,el("span",{"data-uid":e.updatedBy||"",text:names[e.updatedBy]||"a teammate"}),` on ${String(e.updatedAt||"").slice(0,10)}. Ask Claude to sync the hub to write them into the repo. `,
+    el("b",{text:isNew?"New initiative, not synced yet":"Unsynced edits"}),` by `,el("span",{"data-uid":e.updatedBy||"",text:names[e.updatedBy]||"a teammate"}),` on ${String(e.updatedAt||"").slice(0,10)}. Ask Claude to sync the hub to write ${isNew?"it":"them"} into the repo. `,
     canEdit?(confirmDiscard
-      ?el("button",{class:"btn danger small",type:"button",onclick:()=>discard(i.slug)},"Confirm discard")
-      :el("button",{class:"btn ghost small",type:"button",onclick:()=>{confirmDiscard=true;renderDetail();}},"Discard edits")):null):null;
+      ?el("button",{class:"btn danger small",type:"button",onclick:()=>discard(i.slug)},isNew?"Confirm: delete this new initiative":"Confirm discard")
+      :el("button",{class:"btn ghost small",type:"button",onclick:()=>{confirmDiscard=true;renderDetail();}},isNew?"Delete new initiative":"Discard edits")):null):null;
 
   const gate=nxt?el("div",{class:"gate "+(g.length?"open":"pass")},
     el("p",{class:"label",style:"color:inherit",text:g.length?`To move to ${PHASE_NAME[nxt]}`:`Gate passes: ready for ${PHASE_NAME[nxt]}`}),
@@ -353,9 +415,7 @@ function renderDetail(){
     gate,
     el("div",{class:"cards"},
       el("div",{class:"panel"},el("h3",{text:"Blockers"}),i.blockers.length?el("ul",{style:"margin:0;padding-left:1.1rem"},i.blockers.map(t=>el("li",{text:t}))):el("p",{class:"note",text:"No blockers."})),
-      el("div",{class:"panel"},el("h3",{text:"Artifacts"}),table([
-        {key:"artifact",label:"Artifact"},{key:"status",label:"Status",pill:true},{key:"owner",label:"Owner"},{key:"location",label:"Location",cls:"loc",render:r=>linkCell(r.location)}],
-        a.map(x=>({...x,_pending:x.pending})),"No artifacts.")),
+      phasesCard(i,a),
       el("div",{class:"panel"},el("h3",{text:"Customer feedback"}),el("p",{class:"note",text:"Feedback Board entries linked to this initiative, and entries it cites as evidence."}),
         table([{key:"date",label:"Date"},{key:"customer",label:"Customer"},{key:"type",label:"Type",cls:"cap"},{key:"text",label:"Feedback",cls:"wide"},{key:"cited",label:"Evidence for"}],fb,"No feedback linked yet. Pick this initiative on the Feedback Board.")),
       el("div",{class:"panel"},el("h3",{text:"Requirements"}),table([{key:"id",label:"ID"},{key:"title",label:"Title",cls:"wide"},{key:"priority",label:"Priority",pill:true},{key:"status",label:"Status",pill:true},{key:"evidence",label:"Evidence",num:true}],rows("requirements").filter(r=>r.slug===i.slug),"No requirements yet.")),
@@ -366,6 +426,108 @@ function renderDetail(){
   if(flashSlug===i.slug){box.classList.add("flash");setTimeout(()=>box.classList.remove("flash"),1500);flashSlug=null;}
   resolveNames();
 }
+/* ---------- phases: artifacts + links and files ---------- */
+function kindLabel(x){
+  if(x.kind==="file") return "File"+(x.filename?` · ${x.filename}`:"");
+  const u=(x.link||"").toLowerCase();
+  if(u.includes("figma.com")) return "Figma";
+  if(u.includes("docs.google.com")||u.includes("drive.google.com")) return "Google Drive";
+  try{return new URL(x.link).hostname.replace(/^www\./,"");}catch(_){return "Link";}
+}
+function attHref(x){
+  if(x.kind==="link") return /^https:\/\//.test(x.link||"")?x.link:"";
+  return x.asset_url||(x.asset?"/_blob/"+x.asset:"");
+}
+function phasesCard(i,a){
+  const list=atts(i.slug);
+  return el("div",{class:"panel phases",id:"phases"},
+    el("h3",{text:"Phases"}),
+    el("p",{class:"note",text:"Each phase's artifacts, plus links and files for it. Claude reads new links and files at the next sync and saves their text in the repo."}),
+    el("div",{class:"phase-grid"},PHASES.map(p=>{
+      const pa=a.filter(x=>PHASE_ARTS[p].includes(x.key)), pl=list.filter(x=>x.phase===p);
+      const open=addingFor&&addingFor.slug===i.slug&&addingFor.phase===p;
+      return el("div",{class:"phase"+(p===i.phase?" current":""),id:"phase-card-"+p},
+        el("div",{class:"phase-head"},
+          el("span",{},el("b",{text:PHASE_NAME[p]}),p===i.phase?[" ",pill("current","")]:null),
+          canEdit&&!open?el("button",{class:"btn ghost small",type:"button",onclick:()=>{addingFor={slug:i.slug,phase:p};renderDetail();}},"Add link or file"):null),
+        el("ul",{class:"items"},
+          pa.map(x=>el("li",{class:x.pending?"pend-row":""},
+            el("div",{class:"row1"},el("span",{class:"t",text:x.artifact}),pill(x.status)),
+            x.location?el("span",{class:"meta"},/^https:\/\//.test(x.location)?el("a",{href:x.location,target:"_blank",rel:"noopener",text:x.location}):x.location):el("span",{class:"meta",text:"No link yet"}))),
+          pl.map(x=>{
+            const href=attHref(x);
+            return el("li",{},
+              el("div",{class:"row1"},
+                href?el("a",{class:"t",href,target:"_blank",rel:"noopener",text:x.title}):el("span",{class:"t",text:x.title}),
+                x.pending||!x.read?pill(x.pending?"Unsynced":"Read at next sync","pending"):null),
+              el("span",{class:"meta",text:[kindLabel(x),x.use_as?`Used as ${ART_LABEL[x.use_as]||x.use_as}`:"",x.added?String(x.added).slice(0,10):""].filter(Boolean).join(" · ")}),
+              x.summary?el("span",{class:"sum",text:x.summary}):null,
+              x.note?el("span",{class:"meta",text:x.note}):null,
+              canEdit?el("div",{},el("button",{class:"btn ghost small",type:"button",onclick:()=>removeAtt(i.slug,x)},"Remove")):null);
+          })),
+        !pa.length&&!pl.length?el("p",{class:"note",text:"Nothing here yet."}):null,
+        open?attachForm(i,p,pa):null);
+    })));
+}
+function newAttId(){
+  const d=new Date(),p=n=>String(n).padStart(2,"0");
+  const r=Array.from(crypto.getRandomValues(new Uint8Array(4)),b=>"ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[b%32]).join("");
+  return `A-${String(d.getFullYear()).slice(2)}${p(d.getMonth()+1)}${p(d.getDate())}-${r}`;
+}
+function attachForm(i,p,pa){
+  const st={mode:"link",title:"",url:"",file:null,use_as:"",note:""};
+  const say=t=>{status.textContent=t;};
+  const status=el("span",{class:"status",role:"status"});
+  const usable=pa.filter(x=>!["data"].includes(x.form));
+  const urlIn=el("input",{type:"text",id:"att-url",placeholder:"https://docs.google.com/… or https://figma.com/…",oninput:ev=>{st.url=ev.target.value.trim()}});
+  const fileIn=el("input",{type:"file",id:"att-file",onchange:ev=>{st.file=ev.target.files[0]||null;if(st.file&&!titleIn.value){titleIn.value=st.file.name.replace(/\.[^.]+$/,"");st.title=titleIn.value;}}});
+  const titleIn=el("input",{type:"text",id:"att-title",placeholder:"e.g. Concept brief",oninput:ev=>{st.title=ev.target.value}});
+  const urlRow=el("label",{},"Link",urlIn), fileRow=el("label",{class:"hidden"},"File (up to 20 MB)",fileIn);
+  const modeBtns=[["link","Paste a link"],["file","Upload a file"]].filter(([m])=>m==="link"||assets).map(([m,t])=>el("button",{class:"btn ghost small",type:"button","aria-pressed":String(m===st.mode),onclick:ev=>{
+    st.mode=m; urlRow.classList.toggle("hidden",m!=="link"); fileRow.classList.toggle("hidden",m!=="file");
+    ev.target.parentNode.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b===ev.target)));
+  }},t));
+  const save=el("button",{class:"btn small",type:"button",onclick:async()=>{
+    const title=st.title.trim();
+    if(st.mode==="link"&&!/^https:\/\/\S+$/.test(st.url)){say("Paste a full link that starts with https://");return;}
+    if(st.mode==="file"&&!st.file){say("Choose a file to upload.");return;}
+    if(st.mode==="file"&&st.file.size>MAX_UPLOAD){say("That file is over 20 MB. Upload a smaller file or share it as a Drive link.");return;}
+    if(!title){say("Give it a title.");return;}
+    save.disabled=true;
+    try{
+      const rec={id:newAttId(),phase:p,title,kind:st.mode,use_as:st.use_as,note:st.note.trim(),added_at:new Date().toISOString(),added_by:(await user?.id?.())||""};
+      if(st.mode==="link") rec.url=st.url;
+      else{
+        say("Uploading…");
+        const up=await assets.upload(st.file);
+        Object.assign(rec,{asset_id:up.id,asset_url:up.url,filename:st.file.name,content_type:up.contentType||st.file.type||"",size:up.sizeBytes||st.file.size});
+      }
+      await putEdit(i.slug,cur=>{cur.attachments_add.push(rec);});
+      addingFor=null; flashSlug=i.slug; renderDetail();
+    }catch(err){
+      save.disabled=false;
+      const c=err&&err.code;
+      say(c==="quota_exceeded"?"The hub's file storage is full. Share it as a Drive link instead.":c==="unsupported_type"||c==="invalid_argument"?"That file type can't be uploaded. Try a PDF, image or text file, or share it as a link.":"Couldn't save. Try again.");
+    }
+  }},"Save");
+  return el("div",{class:"attach-form"},
+    el("div",{class:"seg"},modeBtns),
+    urlRow,fileRow,
+    el("label",{},"Title",titleIn),
+    el("label",{},"Use as",el("select",{id:"att-use",onchange:ev=>{st.use_as=ev.target.value}},
+      el("option",{value:"",text:"Supporting material"}),usable.map(x=>el("option",{value:x.key,text:`${x.artifact} (sets its link)`})))),
+    el("label",{},"Note (optional)",el("input",{type:"text",id:"att-note",oninput:ev=>{st.note=ev.target.value}})),
+    el("div",{class:"actions"},save,el("button",{class:"btn ghost small",type:"button",onclick:()=>{addingFor=null;renderDetail();}},"Cancel"),status));
+}
+async function removeAtt(slug,x){
+  try{
+    await putEdit(slug,cur=>{
+      if(x.pending) cur.attachments_add=cur.attachments_add.filter(a=>a.id!==x.id);
+      else if(!cur.attachments_remove.includes(x.id)) cur.attachments_remove.push(x.id);
+    });
+  }catch(_){}
+}
+
 function feedbackFor(slug){
   const fb=rows("feedback"), ev=rows("evidence").filter(x=>x.id&&x.slug===slug), out=new Map();
   for(const f of fb) if(f.initiative===slug) out.set(f.id,{...f,cited:"Linked, not cited yet"});
@@ -433,22 +595,29 @@ function editForm(i,a){
       el("button",{class:"btn ghost",type:"button",onclick:()=>{draft=null;renderDetail();}},"Cancel"),
       el("span",{class:"status",id:"edit-status",role:"status"})));
 }
-async function writeEdit(slug,patch,artCh,decs){
+// One pending-edit document per initiative: merge the change into it, or delete it when nothing is left
+async function putEdit(slug,mutate){
+  const cur=JSON.parse(JSON.stringify(EDITS[slug]||{}));
+  cur.patch=cur.patch||{}; cur.artifacts=cur.artifacts||{};
+  for(const k of ["decisions_add","attachments_add","attachments_remove"]) cur[k]=cur[k]||[];
+  mutate(cur);
+  const empty=!cur.create&&!Object.keys(cur.patch).length&&!Object.keys(cur.artifacts).length&&!cur.decisions_add.length&&!cur.attachments_add.length&&!cur.attachments_remove.length;
   const ref=db.doc("edits/"+slug);
-  if(!Object.keys(patch).length&&!Object.keys(artCh).length&&!decs.length){await ref.delete();return;}
-  await ref.set({slug,patch,artifacts:artCh,decisions_add:decs,updatedAt:new Date().toISOString(),updatedBy:(await user?.id?.())||""});
+  if(empty){await ref.delete();return;}
+  await ref.set({...cur,slug,updatedAt:new Date().toISOString(),updatedBy:(await user?.id?.())||""});
 }
 async function saveDraft(){
   const d=draft, b=base(d.slug), say=t=>{const s=$("#edit-status");if(s)s.textContent=t;};
   if(!d.name.trim()){say("Name is required.");return;}
-  const patch={};
+  const patch={}, isNew=!!b._new;
   const map={name:"name",problem:"problem",priority:"priority",owner:"owner",team:"team",target:"target_release"};
-  for(const [k,pk] of Object.entries(map)){const v=String(d[k]??"").trim();if(v!==String(b[k==="target"?"target":k]??"")) patch[pk]=v;}
+  const create=isNew?Object.fromEntries(Object.entries(map).map(([k,pk])=>[pk,String(d[k]??"").trim()])):null;
+  if(!isNew) for(const [k,pk] of Object.entries(map)){const v=String(d[k]??"").trim();if(v!==String(b[k]??"")) patch[pk]=v;}
   const bl=d.blockers.map(s=>s.trim()).filter(Boolean);
   if(JSON.stringify(bl)!==JSON.stringify(b.blockers_list||[])) patch.blockers=bl;
   if(d.phase!==b.phase) patch.phase=d.phase;
   const artCh={};
-  for(const a of rows("artifacts").filter(x=>x.slug===d.slug)){
+  for(const a of baseArts(d.slug)){
     const v=d.art[a.key], c={};
     if(v.status!==a.status) c.status=v.status;
     if(v.owner.trim()!==a.owner) c.owner=v.owner.trim();
@@ -458,12 +627,14 @@ async function saveDraft(){
   const decs=[...d.decisions];
   if(d.newDec.decision.trim()) decs.push({date:d.newDec.date||today(),decision:d.newDec.decision.trim(),by:d.newDec.by.trim()});
   const btn=$("#save-edit"); if(btn) btn.disabled=true; say("Saving…");
-  try{await writeEdit(d.slug,patch,artCh,decs);draft=null;flashSlug=d.slug;renderDetail();}
+  try{
+    await putEdit(d.slug,cur=>{if(create) cur.create=create; cur.patch=patch; cur.artifacts=artCh; cur.decisions_add=decs;});
+    draft=null;flashSlug=d.slug;renderDetail();
+  }
   catch(err){if(btn) btn.disabled=false;say(err&&err.code==="permission_denied"?"You don't have permission to edit this hub.":"Couldn't save. Try again.");}
 }
 async function movePhase(slug,to){
-  const e=EDITS[slug]||{};
-  try{await writeEdit(slug,{...(e.patch||{}),phase:to},e.artifacts||{},e.decisions_add||[]);flashSlug=slug;}catch(_){}
+  try{await putEdit(slug,cur=>{cur.patch.phase=to;});flashSlug=slug;}catch(_){}
 }
 async function discard(slug){confirmDiscard=false;try{await db.doc("edits/"+slug).delete();}catch(_){renderDetail();}}
 async function resolveNames(){
@@ -491,12 +662,42 @@ function renderFeedback(){
 }
 $("#fb-search").addEventListener("input",renderFeedback);
 
+/* ---------- new initiative ---------- */
+const slugify=s=>String(s||"").toLowerCase().trim().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,48);
+function newSlug(){
+  const d=new Date(), n=slugify($("#new-name").value);
+  return n?`${d.getFullYear()}-q${Math.floor(d.getMonth()/3)+1}-${n}`:"";
+}
+$("#new-name").addEventListener("input",()=>{$("#new-slug").textContent=newSlug()||"—";});
+$("#new-btn").addEventListener("click",()=>{
+  $("#new-panel").classList.remove("hidden");
+  if(!$("#new-owner").value) $("#new-owner").value=meName;
+  $("#new-name").focus();
+});
+$("#new-cancel").addEventListener("click",()=>{$("#new-panel").classList.add("hidden");$("#new-status").textContent="";});
+$("#new-create").addEventListener("click",async()=>{
+  const say=t=>{$("#new-status").textContent=t;};
+  const name=$("#new-name").value.trim(), slug=newSlug();
+  if(!name||!slug){say("Give the initiative a name.");return;}
+  if(base(slug)){say(`${slug} already exists. Pick a different name.`);return;}
+  const btn=$("#new-create"); btn.disabled=true;
+  try{
+    await putEdit(slug,cur=>{cur.create={name,problem:$("#new-problem").value.trim(),priority:$("#new-priority").value,
+      owner:$("#new-owner").value.trim(),team:$("#new-team").value.trim(),target_release:$("#new-target").value.trim()};});
+    for(const id of ["#new-name","#new-problem","#new-team","#new-target"]) $(id).value="";
+    $("#new-slug").textContent="—"; $("#new-panel").classList.add("hidden"); say("");
+    picked=slug; flashSlug=slug; render(); $("#detail").scrollIntoView({behavior:"smooth",block:"start"});
+  }catch(err){say(err&&err.code==="permission_denied"?"You don't have permission to add initiatives here.":"Couldn't create it. Try again.");}
+  finally{btn.disabled=false;}
+});
+
 /* ---------- boot ---------- */
 render();
 (async()=>{
   const use=n=>(window.claude&&window.claude.use)?window.claude.use(n).catch(()=>null):Promise.resolve(null);
-  [db,user]=await Promise.all([use("db"),use("user")]);
+  [db,user,assets]=await Promise.all([use("db"),use("user"),use("assets")]);
   if(user){try{canEdit=await user.canEdit();}catch(_){}try{meName=(await user.me()).name||"";}catch(_){}}
+  $("#new-btn").classList.toggle("hidden",!(db&&canEdit));
   if(!db){loaded=true;render();return;}
   db.collection("snapshot").onSnapshot(snap=>{
     for(const d of snap.docs){const v=d.data();S[d.id]=Array.isArray(v.rows)?v.rows:[];if(d.id==="initiatives") snapAt=v.exported_at||"";}

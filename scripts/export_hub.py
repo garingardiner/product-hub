@@ -22,7 +22,7 @@ def text(v):
 
 def main():
     rows = {k: [] for k in ("initiatives", "artifacts", "requirements", "hypotheses", "metrics", "decisions",
-                            "feedback", "evidence", "feedback_snapshot")}
+                            "feedback", "evidence", "feedback_snapshot", "attachments")}
     lib_path = ROOT / "feedback" / "library.json"
     lib = json.loads(lib_path.read_text(encoding="utf-8")) if lib_path.exists() else {}
     for e in lib.get("entries") or []:
@@ -96,6 +96,14 @@ def main():
             rows["metrics"].append({
                 "slug": slug, "name": text(x.get("name")), "type": text(x.get("type")), "target": text(x.get("target")),
                 "method": text(x.get("method")), "review_date": text(x.get("review_date")), "verdict": text(x.get("verdict")),
+            })
+        for at in m.get("attachments") or []:
+            rows["attachments"].append({
+                "slug": slug, "id": text(at.get("id")), "phase": text(at.get("phase")), "title": text(at.get("title")),
+                "kind": text(at.get("kind")), "link": text(at.get("link")), "filename": text(at.get("filename")),
+                "asset": text(at.get("asset")), "use_as": text(at.get("use_as")), "note": text(at.get("note")),
+                "added": text(at.get("added")), "read": bool(at.get("read")), "summary": text(at.get("summary")),
+                "source": text(at.get("source")),
             })
         for d in m.get("decisions") or []:
             rows["decisions"].append({"slug": slug, "date": text(d.get("date")), "decision": text(d.get("decision")),
