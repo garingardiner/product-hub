@@ -1,0 +1,15 @@
+release: ""
+items: []
+#  - id: S-01
+#    title: ""
+#    requirements: [R-001]
+#    estimate: ""
+#    asana_task: ""
+#    status: planned        # planned | in-progress | done | cut
+out_of_scope: []
+dependencies: []
+risks: []
+qa:
+  owner: ""
+  approach: ""
+support_readiness: ""

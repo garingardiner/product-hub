@@ -1,0 +1,34 @@
+name: Notebook API
+slug: 2026-q4-notebook-api
+problem: There's no way to edit an nTop notebook from code (live or headless), so power users, FSEs and AI agents fall back on mouse clicks, macros and fragile GUI automation.
+phase: engineering   # backfilled 2026-10-22; feedback and spec gates not yet met (see blockers)
+priority: P0       # TBD: confirm; brief calls AI a top-level priority
+owner: Tristan Antonsen
+team: Build Team
+collaborators:
+  user_research: []
+  ux: []
+  sales: []
+  engineering: [Tatiana]   # .ntopcode in parallel for Siemens Energy
+  support: []
+  marketing: []
+target_release: 2027-01   # V1 API/MCP GA in January; headless release Q1 2027
+blockers:
+  - "Backfill gap (feedback): customer use cases not in library; no evidence, verdicts or sizing"
+  - "Backfill gap (spec): project spec, UX spec and success metrics not approved; metrics lack methods and review dates"
+  - Licensing/concurrency for headless and agentic use undecided (R&D + GTM, before GA)
+decisions:
+  - { date: 2026-07-01, decision: "Notebook API selected over JSON recipe, .ntopcode, C Evaluation API and DSL; build MVP in a two-week sprint", by: "Build Team" }   # date approximate: brief says 'as of July 2026'
+  - { date: 2026-10-01, decision: "Replace telnet live console with SSH before private beta (security gate)", by: "Build Team" }   # date approximate
+  - { date: 2026-10-01, decision: "v1 scoped to the Model surface; Viewport, Organization, Notebook tracked for later", by: "Build Team" }   # date approximate
+  - { date: 2026-10-01, decision: "MCP is a thin layer generated from the Python API definitions; Python API ships first", by: "Build Team" }   # date approximate
+  - { date: 2026-10-01, decision: "Getting-started agent skill ships and versions with the API (Build Team owns); AI starter kit belongs to GTM", by: "Build Team" }   # date approximate
+  - { date: 2026-10-22, decision: "Concept marked approved (July decision was to proceed); phase backfilled to engineering with feedback and spec gates still open", by: "garingardiner" }
+artifacts:
+  concept:           { form: drive, link: "https://docs.google.com/document/d/15y_FXomm9PEPNCLvlGpHoaVHcrC__LlEn67jK28eAdQ/edit", status: approved, owner: Tristan Antonsen }   # tabs: Initiative, Solution Evaluation (OST), Industry Precedence
+  feedback:          { form: data, path: feedback.yaml, status: draft, owner: Tristan Antonsen }
+  project_spec:      { form: drive, link: "https://docs.google.com/document/d/15y_FXomm9PEPNCLvlGpHoaVHcrC__LlEn67jK28eAdQ/edit", status: draft, owner: Tristan Antonsen }   # tabs: Proposed Solution, [Draft] Notebook API v1, Headless/GUI Requirements, Release Plan
+  ux_spec:           { form: other, link: "", status: not-started, owner: "" }   # API surface; Python API Style Reference in the brief may serve
+  success_metrics:   { form: data, path: metrics.yaml, status: draft, owner: Tristan Antonsen }
+  engineering_scope: { form: data, path: scope.yaml, status: not-started, owner: "" }
+  feature_benefits:  { form: claude-artifact, link: "", status: not-started, owner: "" }

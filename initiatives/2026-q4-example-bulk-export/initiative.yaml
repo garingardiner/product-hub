@@ -1,0 +1,24 @@
+# EXAMPLE: delete once you have a real initiative
+name: Bulk export
+slug: 2026-q4-example-bulk-export
+problem: Admins can't export project data in bulk, so they file support tickets or script against the API.
+phase: feedback
+priority: P1
+owner: Jane PM
+collaborators:
+  user_research: [Sam]
+  ux: [Priya]
+  sales: [Alex]
+target_release: 2027-Q1
+blockers:
+  - Need 3 more enterprise interviews before sizing is credible
+decisions:
+  - { date: 2026-10-15, decision: "Proceed to customer validation", by: "PM lead" }
+artifacts:
+  concept:           { form: claude-doc, link: "https://claude.ai/...", status: approved, owner: Jane PM }
+  feedback:          { form: data, path: feedback.yaml, status: draft, owner: Sam }
+  project_spec:      { form: claude-doc, link: "", status: not-started, owner: Jane PM }
+  ux_spec:           { form: figma, link: "", status: not-started, owner: Priya }
+  success_metrics:   { form: data, path: metrics.yaml, status: not-started, owner: Jane PM }
+  engineering_scope: { form: data, path: scope.yaml, status: not-started, owner: "" }
+  feature_benefits:  { form: claude-artifact, link: "", status: not-started, owner: Alex }

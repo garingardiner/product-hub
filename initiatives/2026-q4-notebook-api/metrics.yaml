@@ -1,0 +1,50 @@
+# From the brief's Success Measures. Methods and review dates still to be defined.
+metrics:
+  - name: Customer workflows demonstrated end to end using only the API
+    type: leading
+    target: ">= 3"
+    stretch: ""
+    method: ""
+    review_date: null
+    actual: null
+    verdict: null
+  - name: Previously backlogged features shipped via the API
+    type: lagging
+    target: ">= 3 within one quarter of launch"
+    stretch: ""
+    method: ""
+    review_date: null
+    actual: null
+    verdict: null
+  - name: Strategic-account power users adopting independently
+    type: lagging
+    target: ">= 1 within one quarter of launch"
+    stretch: ""
+    method: ""   # beta telemetry via Analytics is planned
+    review_date: null
+    actual: null
+    verdict: null
+  - name: API surface size at launch (scope-creep indicator)
+    type: leading
+    target: "<= TBD commands"
+    stretch: ""
+    method: ""
+    review_date: null
+    actual: null
+    verdict: null
+  - name: Engineer review calls the surface minimal and coherent
+    type: leading
+    target: "No obvious missing or redundant commands"
+    stretch: ""
+    method: ""
+    review_date: null
+    actual: null
+    verdict: null
+  - name: Power user rates an automated workflow "obviously better" than by hand
+    type: lagging
+    target: ""
+    stretch: ""
+    method: ""
+    review_date: null
+    actual: null
+    verdict: null

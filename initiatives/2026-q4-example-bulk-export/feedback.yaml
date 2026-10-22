@@ -1,0 +1,7 @@
+hypotheses:
+  - { id: H-1, statement: "Enterprise admins export at least monthly for audits", verdict: open }
+evidence:
+  - { id: F-261018-EXMP, hypotheses: [H-1], requirements: [R-001], note: "Quarterly manual export of ~40 projects" }
+searches: ["tag:bulk-export", "tag:audit-reporting segment:enterprise"]
+themes: []
+sizing: { segments: [enterprise], customer_count: null, revenue_signal: "" }

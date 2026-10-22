@@ -1,0 +1,9 @@
+requirements:
+  - id: R-001
+    title: Export all projects as CSV
+    description: Admin can export every project in the workspace in one action.
+    priority: P0
+    status: draft
+    acceptance_criteria:
+      - Given an admin, when they choose Export all, then they receive a download link by email within 15 minutes
+    evidence: [F-261018-EXMP]
