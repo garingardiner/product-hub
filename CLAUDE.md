@@ -92,9 +92,7 @@ Allowed values for `form` in a manifest:
     `batch` `set` each `snapshot/<name>` from `build/hub/db/<name>.json`.
   - **Sync hub**: `ArtifactData` `list` `edits` (`out_dir` = `build/hub-edits`); `python scripts/apply_hub_edits.py build/hub-edits`
     and tell the user every line it prints (rejected values, phase moves held back by an open gate); `python scripts/status.py`;
-    refresh the snapshot; `delete` each applied `edits/<slug>` at the version in `build/hub-edits/applied.json`; commit and push.
-  - The old read-only dashboard (https://claude.ai/artifact/51MGnyV844Q76BQEV1McRa) is retired; don't update it.
-- **Git**: the repo is on GitHub at https://github.com/garingardiner/product-hub (private; may move to the nTopology org).
+    refresh the snapshot; `delete` each applied `edits/<slug>` at the version in `build/hub-edits/applied.json`; commit and push.- **Git**: the repo is on GitHub at https://github.com/garingardiner/product-hub (private; may move to the nTopology org).
   Commit and push after changing manifests or data. The working copy lives in Google Drive, so only one machine should push from it.
 - **Syncing to Asana**: scope items with `asana_task` empty get created as tasks; write the task link back to `scope.yaml`.
 
