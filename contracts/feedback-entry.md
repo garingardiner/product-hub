@@ -13,7 +13,7 @@ Collected on the Feedback Board; snapshotted to `feedback/library.json`.
 | `sentiment` | `negative`, `neutral`, `positive` |
 | `tags` | 2–5 topic tags (see below) |
 | `source` | `interview`, `sales-call`, `support-ticket`, `survey`, `usage-data`, `other` |
-| `customer`, `segment`, `date` | Who and when. Segment is a tag-style value (`enterprise`, `mid-market`). |
+| `customer`, `segment`, `date` | Who and when. Segment is picked on the board: `aerospace`, `automotive`, `power` (add more in the board's `SEGMENTS` list). |
 | `contact` | Optional name and role of the person who said it (e.g. "Dana Lee, AM lead") |
 | `initiative` | Optional initiative slug this entry was collected for, picked from the board's initiative list |
 | `updatedAt` | Set by the board when an entry is edited after saving |
