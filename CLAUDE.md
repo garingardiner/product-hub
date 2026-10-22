@@ -85,9 +85,15 @@ Allowed values for `form` in a manifest:
   `synthesize-research` skill on the matches, and record cited entry IDs, themes, and verdicts in `feedback.yaml`.
 - **Competitive research in discovery**: use the `competitive-brief` skill.
 - **Status updates**: use the `stakeholder-update` skill, sourced from manifests and `ROADMAP.md`.
-- **Product Hub page** (read-only team view): https://claude.ai/artifact/51MGnyV844Q76BQEV1McRa (a Dashboard artifact).
-  After manifests change, run `python scripts/export_hub.py`, upload each `build/hub/*.json` as an asset, and `update`
-  the matching `datasets/<name>` document's `source.url` and `updated`. The YAML stays the source of truth.
+- **Product Hub page** (team view, editable): https://claude.ai/artifact/JWW5M7kic5TSz9gyJ19WtW, source `pages/product-hub.html`.
+  It reads a `snapshot` collection (one doc per dataset, `{rows}`) and saves people's edits as pending docs in `edits/<slug>`.
+  The YAML stays the source of truth: edits reach the repo only through "sync hub".
+  - **Refresh the snapshot** (after any manifest or data change): `python scripts/export_hub.py`, then `ArtifactData`
+    `batch` `set` each `snapshot/<name>` from `build/hub/db/<name>.json`.
+  - **Sync hub**: `ArtifactData` `list` `edits` (`out_dir` = `build/hub-edits`); `python scripts/apply_hub_edits.py build/hub-edits`
+    and tell the user every line it prints (rejected values, phase moves held back by an open gate); `python scripts/status.py`;
+    refresh the snapshot; `delete` each applied `edits/<slug>` at the version in `build/hub-edits/applied.json`; commit and push.
+  - The old read-only dashboard (https://claude.ai/artifact/51MGnyV844Q76BQEV1McRa) is retired; don't update it.
 - **Git**: the repo is on GitHub at https://github.com/garingardiner/product-hub (private; may move to the nTopology org).
   Commit and push after changing manifests or data. The working copy lives in Google Drive, so only one machine should push from it.
 - **Syncing to Asana**: scope items with `asana_task` empty get created as tasks; write the task link back to `scope.yaml`.

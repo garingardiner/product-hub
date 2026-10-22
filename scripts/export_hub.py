@@ -2,10 +2,11 @@
 """Export initiative manifests and data files as JSON rows for the Product Hub page.
 
 Usage: python scripts/export_hub.py   (requires: pip install pyyaml)
-Writes build/hub/*.json; attach each file to the hub's matching source.
-Skips _template and any folder with "example" in its slug.
+Writes build/hub/*.json (row arrays) and build/hub/db/*.json ({"rows": [...]} documents for the
+interactive hub's `snapshot` collection). Skips _template and any folder with "example" in its slug.
 """
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 import status
 
@@ -45,6 +46,8 @@ def main():
         reqs = status.load(f / "requirements.yaml").get("requirements") or []
         fb = status.load(f / "feedback.yaml")
         hyps = fb.get("hypotheses") or []
+        data_gaps = status.data_checks(f, phase)
+        nxt = status.PHASES[status.PHASES.index(phase) + 1] if phase in status.PHASES[:5] else ""
         rows["initiatives"].append({
             "slug": slug, "name": m.get("name", slug), "priority": m.get("priority", ""), "phase": phase,
             "phase_index": status.PHASES.index(phase) + 1 if phase in status.PHASES else None,
@@ -58,11 +61,13 @@ def main():
             "requirements": len(reqs), "p0_requirements": sum(1 for r in reqs if r.get("priority") == "P0"),
             "open_hypotheses": sum(1 for h in hyps if h.get("verdict") in (None, "open")),
             "manifest_errors": "; ".join(errors),
+            # For the interactive hub: data-file gaps (not editable on the page) apart from artifact-status gaps
+            "gate_data": data_gaps, "next_phase": nxt, "blockers_list": [text(b) for b in m.get("blockers") or []],
         })
         for key, a in arts.items():
             loc = a.get("path") if a.get("form") in ("repo-md", "data") else a.get("link")
             rows["artifacts"].append({
-                "slug": slug, "artifact": ARTIFACT_LABELS.get(key, key), "form": text(a.get("form")),
+                "slug": slug, "key": key, "artifact": ARTIFACT_LABELS.get(key, key), "form": text(a.get("form")),
                 "status": text(a.get("status")), "owner": text(a.get("owner")), "location": text(loc),
             })
         for r in reqs:
@@ -99,9 +104,12 @@ def main():
         # The hub page treats a file with no rows as a failed load; this row has no id and the page skips it
         rows["evidence"].append({"slug": "", "id": "", "hypotheses": "", "requirements": "",
                                  "note": "Placeholder: no initiative cites feedback yet"})
-    OUT.mkdir(parents=True, exist_ok=True)
+    (OUT / "db").mkdir(parents=True, exist_ok=True)
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     for name, data in rows.items():
         (OUT / f"{name}.json").write_text(json.dumps(data, indent=1, ensure_ascii=False), encoding="utf-8")
+        (OUT / "db" / f"{name}.json").write_text(json.dumps({"rows": data, "exported_at": now}, ensure_ascii=False),
+                                                 encoding="utf-8")
         print(f"{name}.json: {len(data)} rows")
 
 if __name__ == "__main__":

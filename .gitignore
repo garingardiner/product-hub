@@ -9,3 +9,6 @@ Thumbs.db
 # Claude Code local settings
 .claude/settings.local.json
 build/board-sync/
+build/hub-edits/
+build/hub/db/
+.claude/launch.json
