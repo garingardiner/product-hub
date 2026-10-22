@@ -25,6 +25,7 @@
   --warn-bg:#3A3018; --warn-ink:#F3D98B; --ok:#6CCB95; --ok-bg:#183326; --danger:#F2948C; --pending:#C3A3F0; --pending-bg:#2C2240;
   color-scheme:dark;
 }
+*,*::before,*::after{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--sans);font-variant-numeric:tabular-nums}
 button,input,select,textarea{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -113,7 +114,10 @@ textarea{width:100%;min-height:72px;resize:vertical;line-height:1.45}
 .form{display:grid;gap:12px}
 .form .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr));gap:10px}
 .form label{display:grid;gap:4px;font-size:.84rem;font-weight:600}
-.form label input,.form label select{width:100%}
+.form label input,.form label select{width:100%;min-width:0}
+.form label{min-width:0}
+.form .row .wide-field{grid-column:span 2}
+@media (max-width:30rem){.form .row .wide-field{grid-column:auto}}
 .blk{display:flex;gap:6px;align-items:center;margin-bottom:6px}
 .blk input{flex:1;min-width:0}
 .status{font-size:.86rem;color:var(--muted);min-height:1.2em}
@@ -169,7 +173,7 @@ textarea{width:100%;min-height:72px;resize:vertical;line-height:1.45}
     <p class="note">It shows on this page as soon as you create it. At the next sync, Claude creates its folder in the repo from the template and adds it to the Feedback Board's initiative list.</p>
     <div class="form">
       <div class="row">
-        <label>Name<input type="text" id="new-name" placeholder="e.g. Loft Block"></label>
+        <label class="wide-field">Name<input type="text" id="new-name" placeholder="e.g. Loft Block"></label>
         <label>Priority<select id="new-priority"><option>P0</option><option selected>P1</option><option>P2</option></select></label>
         <label>Owner<select id="new-owner"><option value="">Select an owner</option><option>Tristan Antonsen</option><option>Bryce Mazurowski</option><option>Patrick Ogdin</option></select></label>
         <label>Team<select id="new-team"><option value="">Select a team</option><option>Build</option><option>Analyze</option><option>Orchestrate</option></select></label>
@@ -584,7 +588,7 @@ function startEdit(slug){
 }
 function editForm(i,a){
   const d=draft, b=base(i.slug);
-  const inp=(key,label,attrs={})=>el("label",{},label,el("input",{type:"text",value:d[key]||"",oninput:ev=>{d[key]=ev.target.value},...attrs}));
+  const inp=(key,label,attrs={})=>el("label",{class:key==="name"?"wide-field":null},label,el("input",{type:"text",value:d[key]||"",oninput:ev=>{d[key]=ev.target.value},...attrs}));
   const phaseOpts=()=>{
     const cur=b.phase, ci=PHASES.indexOf(cur), nx=PHASES[ci+1];
     const opts=PHASES.slice(0,ci+1);
