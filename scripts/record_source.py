@@ -3,13 +3,16 @@
 
 Usage: python scripts/record_source.py <slug> <attachment-id> --summary "One line" [--file <repo-relative path>]
 Expects the extracted text already saved at initiatives/<slug>/sources/<attachment-id>.md.
-Marks the attachment read, stores the summary and source path, and keeps the original upload's path if given.
+Marks the attachment read, stores the summary and source path, and, given --file, the original upload's path
+plus its GitHub link (repo_link), so the document can be opened outside the hub.
 An uploaded file marked "use as" an artifact makes that artifact point at the extracted text (repo-md).
 """
 import argparse
 from io import StringIO
 from ruamel.yaml import YAML
 import status
+
+REPO_BLOB = "https://github.com/garingardiner/product-hub/blob/main"
 
 def main():
     ap = argparse.ArgumentParser()
@@ -29,7 +32,11 @@ def main():
         raise SystemExit(f"{a.slug}: no attachment {a.id}")
     att["read"], att["source"], att["summary"] = True, src, a.summary.strip()
     if a.file:
+        if not (folder / a.file).exists():
+            raise SystemExit(f"{folder / a.file} not found; save the uploaded original there first")
         att["file"] = a.file
+        # A link to the original that works outside the hub page (for people with repo access)
+        att["repo_link"] = f"{REPO_BLOB}/initiatives/{a.slug}/{a.file}".replace(" ", "%20")
     use_as = att.get("use_as")
     if att.get("kind") == "file" and use_as in (doc.get("artifacts") or {}):
         art = doc["artifacts"][use_as]

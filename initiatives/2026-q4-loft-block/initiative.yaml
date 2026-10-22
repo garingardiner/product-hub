@@ -4,7 +4,7 @@ problem: Many customers need lofted geometry, but there's no Block Library block
 phase: discovery
 priority: P1
 owner: Triston
-team: Build Team
+team: Build
 collaborators:
   user_research: []
   ux: []

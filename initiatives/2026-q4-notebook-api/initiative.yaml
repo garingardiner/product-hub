@@ -4,7 +4,7 @@ problem: There's no way to edit an nTop notebook from code (live or headless), s
 phase: engineering   # backfilled 2026-10-22; feedback and spec gates not yet met (see blockers)
 priority: P0       # TBD: confirm; brief calls AI a top-level priority
 owner: Tristan Antonsen
-team: Build Team
+team: Build
 collaborators:
   user_research: []
   ux: []

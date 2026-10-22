@@ -103,7 +103,9 @@ def main():
                 "kind": text(at.get("kind")), "link": text(at.get("link")), "filename": text(at.get("filename")),
                 "asset": text(at.get("asset")), "use_as": text(at.get("use_as")), "note": text(at.get("note")),
                 "added": text(at.get("added")), "read": bool(at.get("read")), "summary": text(at.get("summary")),
-                "source": text(at.get("source")),
+                "source": text(at.get("source")), "repo_link": text(at.get("repo_link")),
+                "source_link": f"https://github.com/garingardiner/product-hub/blob/main/initiatives/{slug}/{at['source']}"
+                               if at.get("source") else "",
             })
         for d in m.get("decisions") or []:
             rows["decisions"].append({"slug": slug, "date": text(d.get("date")), "decision": text(d.get("decision")),

@@ -9,6 +9,7 @@ problem: string              # one line
 phase: discovery | feedback | spec | engineering | gtm | done | parked
 priority: P0 | P1 | P2
 owner: string                # PM
+team: Build | Analyze | Orchestrate
 collaborators: { role: [names] }
 target_release: string       # optional, e.g. 2027-Q1
 blockers: [string]
@@ -29,6 +30,7 @@ attachments:                 # links and files added per phase (usually from the
     link: string             # kind link (Google Drive, Figma, any https URL)
     asset: string            # kind file: the hub's uploaded-file id; filename: original name
     file: string             # kind file: where the original was saved, e.g. files/notes.pdf
+    repo_link: string        # kind file: GitHub link to that original, set at sync
     use_as: string           # optional artifact key it fills (sets that artifact's link or path)
     read: bool               # true once Claude has read it
     source: string           # extracted text, e.g. sources/A-261022-AB12.md

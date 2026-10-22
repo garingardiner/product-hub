@@ -23,6 +23,7 @@ import status
 ROOT = status.ROOT
 FIELDS = {"name", "problem", "priority", "owner", "team", "target_release"}
 PRIORITIES = {"P0", "P1", "P2"}
+TEAMS = {"", "Build", "Analyze", "Orchestrate"}   # keep in sync with TEAMS in pages/product-hub.html
 SLUG = re.compile(r"^\d{4}-q[1-4]-[a-z0-9][a-z0-9-]{1,60}$")
 
 def flow(d):
@@ -70,6 +71,9 @@ def apply_one(slug, data, yaml):
             v = str(v).strip()
             if k == "priority" and v not in PRIORITIES:
                 msgs.append(f"{slug}: priority '{v}' not allowed, kept {doc.get('priority')}")
+                continue
+            if k == "team" and v not in TEAMS:
+                msgs.append(f"{slug}: team '{v}' not one of Build, Analyze, Orchestrate; kept {doc.get('team')}")
                 continue
             if k == "name" and not v:
                 msgs.append(f"{slug}: empty name ignored")

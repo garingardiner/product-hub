@@ -172,7 +172,7 @@ textarea{width:100%;min-height:72px;resize:vertical;line-height:1.45}
         <label>Name<input type="text" id="new-name" placeholder="e.g. Loft Block"></label>
         <label>Priority<select id="new-priority"><option>P0</option><option selected>P1</option><option>P2</option></select></label>
         <label>Owner<input type="text" id="new-owner"></label>
-        <label>Team<input type="text" id="new-team" placeholder="e.g. Build Team"></label>
+        <label>Team<select id="new-team"><option value="">Select a team</option><option>Build</option><option>Analyze</option><option>Orchestrate</option></select></label>
         <label>Target<input type="text" id="new-target" placeholder="e.g. 2027-03"></label>
       </div>
       <label>Problem<textarea id="new-problem" placeholder="Who has the problem, and what it costs them today"></textarea></label>
@@ -241,6 +241,7 @@ const PHASE_ARTS={discovery:["concept"],feedback:["feedback"],spec:["project_spe
 // Mirrors initiatives/_template/initiative.yaml, for initiatives created here and not synced yet
 const TEMPLATE_ARTS=[["concept","claude-doc"],["feedback","data","feedback.yaml"],["project_spec","claude-doc"],["ux_spec","figma"],["success_metrics","data","metrics.yaml"],["engineering_scope","data","scope.yaml"],["feature_benefits","claude-artifact"]];
 const MAX_UPLOAD=20*1024*1024;
+const TEAMS=["Build","Analyze","Orchestrate"];   // keep in sync with TEAMS in scripts/apply_hub_edits.py
 
 /* ---------- state ---------- */
 let db=null,user=null,assets=null,canEdit=false,meName="",addingFor=null;
@@ -441,7 +442,8 @@ function attHref(x){
 function phasesCard(i,a){
   const list=atts(i.slug);
   return el("div",{class:"panel phases",id:"phases"},
-    el("h3",{text:"Phases"}),
+    el("div",{class:"phase-head"},el("h3",{text:"Phases"}),
+      canEdit&&!addingFor?el("button",{class:"btn small",type:"button",onclick:()=>{addingFor={slug:i.slug,phase:i.phase};renderDetail();document.getElementById("phase-card-"+i.phase)?.scrollIntoView({behavior:"smooth",block:"nearest"});}},"Add link or file"):null),
     el("p",{class:"note",text:"Each phase's artifacts, plus links and files for it. Claude reads new links and files at the next sync and saves their text in the repo."}),
     el("div",{class:"phase-grid"},PHASES.map(p=>{
       const pa=a.filter(x=>PHASE_ARTS[p].includes(x.key)), pl=list.filter(x=>x.phase===p);
@@ -456,17 +458,24 @@ function phasesCard(i,a){
             x.location?el("span",{class:"meta"},/^https:\/\//.test(x.location)?el("a",{href:x.location,target:"_blank",rel:"noopener",text:x.location}):x.location):el("span",{class:"meta",text:"No link yet"}))),
           pl.map(x=>{
             const href=attHref(x);
+            const links=[
+              href?el("a",{href,target:"_blank",rel:"noopener",text:x.kind==="file"?"Open file":"Open link"}):null,
+              /^https:\/\//.test(x.repo_link||"")?el("a",{href:x.repo_link,target:"_blank",rel:"noopener",text:"View in repo"}):null,
+              /^https:\/\//.test(x.source_link||"")?el("a",{href:x.source_link,target:"_blank",rel:"noopener",text:"Extracted text"}):null,
+            ].filter(Boolean);
             return el("li",{},
               el("div",{class:"row1"},
-                href?el("a",{class:"t",href,target:"_blank",rel:"noopener",text:x.title}):el("span",{class:"t",text:x.title}),
+                el("span",{class:"t",text:x.title}),
                 x.pending||!x.read?pill(x.pending?"Unsynced":"Read at next sync","pending"):null),
               el("span",{class:"meta",text:[kindLabel(x),x.use_as?`Used as ${ART_LABEL[x.use_as]||x.use_as}`:"",x.added?String(x.added).slice(0,10):""].filter(Boolean).join(" · ")}),
               x.summary?el("span",{class:"sum",text:x.summary}):null,
               x.note?el("span",{class:"meta",text:x.note}):null,
-              canEdit?el("div",{},el("button",{class:"btn ghost small",type:"button",onclick:()=>removeAtt(i.slug,x)},"Remove")):null);
+              x.kind==="file"&&!x.repo_link?el("span",{class:"meta",text:"A shareable repo link is added when the hub syncs."}):null,
+              el("div",{class:"actions",style:"gap:12px;font-size:.86rem"},links,
+                canEdit?el("button",{class:"btn ghost small",type:"button",onclick:()=>removeAtt(i.slug,x)},"Remove"):null));
           })),
         !pa.length&&!pl.length?el("p",{class:"note",text:"Nothing here yet."}):null,
-        open?attachForm(i,p,pa):null);
+        open?attachForm(i,p,a):null);
     })));
 }
 function newAttId(){
@@ -474,11 +483,18 @@ function newAttId(){
   const r=Array.from(crypto.getRandomValues(new Uint8Array(4)),b=>"ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[b%32]).join("");
   return `A-${String(d.getFullYear()).slice(2)}${p(d.getMonth()+1)}${p(d.getDate())}-${r}`;
 }
-function attachForm(i,p,pa){
-  const st={mode:"link",title:"",url:"",file:null,use_as:"",note:""};
+function attachForm(i,p,a){
+  const st={mode:"link",phase:p,title:"",url:"",file:null,use_as:"",note:""};
   const say=t=>{status.textContent=t;};
   const status=el("span",{class:"status",role:"status"});
-  const usable=pa.filter(x=>!["data"].includes(x.form));
+  // Artifacts a link or file can fill for the chosen phase (YAML data artifacts can't)
+  const usable=ph=>a.filter(x=>PHASE_ARTS[ph].includes(x.key)&&x.form!=="data");
+  const useSel=el("select",{id:"att-use",onchange:ev=>{st.use_as=ev.target.value}});
+  const fillUse=()=>{st.use_as="";useSel.replaceChildren(el("option",{value:"",text:"Supporting material"}),
+    ...usable(st.phase).map(x=>el("option",{value:x.key,text:`${x.artifact} (sets its link)`})));};
+  fillUse();
+  const phaseSel=el("select",{id:"att-phase",onchange:ev=>{st.phase=ev.target.value;fillUse();}},
+    PHASES.map(ph=>el("option",{value:ph,text:PHASE_NAME[ph]+(ph===i.phase?" (current)":""),selected:ph===p})));
   const urlIn=el("input",{type:"text",id:"att-url",placeholder:"https://docs.google.com/… or https://figma.com/…",oninput:ev=>{st.url=ev.target.value.trim()}});
   const fileIn=el("input",{type:"file",id:"att-file",onchange:ev=>{st.file=ev.target.files[0]||null;if(st.file&&!titleIn.value){titleIn.value=st.file.name.replace(/\.[^.]+$/,"");st.title=titleIn.value;}}});
   const titleIn=el("input",{type:"text",id:"att-title",placeholder:"e.g. Concept brief",oninput:ev=>{st.title=ev.target.value}});
@@ -495,7 +511,7 @@ function attachForm(i,p,pa){
     if(!title){say("Give it a title.");return;}
     save.disabled=true;
     try{
-      const rec={id:newAttId(),phase:p,title,kind:st.mode,use_as:st.use_as,note:st.note.trim(),added_at:new Date().toISOString(),added_by:(await user?.id?.())||""};
+      const rec={id:newAttId(),phase:st.phase,title,kind:st.mode,use_as:st.use_as,note:st.note.trim(),added_at:new Date().toISOString(),added_by:(await user?.id?.())||""};
       if(st.mode==="link") rec.url=st.url;
       else{
         say("Uploading…");
@@ -514,8 +530,8 @@ function attachForm(i,p,pa){
     el("div",{class:"seg"},modeBtns),
     urlRow,fileRow,
     el("label",{},"Title",titleIn),
-    el("label",{},"Use as",el("select",{id:"att-use",onchange:ev=>{st.use_as=ev.target.value}},
-      el("option",{value:"",text:"Supporting material"}),usable.map(x=>el("option",{value:x.key,text:`${x.artifact} (sets its link)`})))),
+    el("label",{},"Phase",phaseSel),
+    el("label",{},"Use as",useSel),
     el("label",{},"Note (optional)",el("input",{type:"text",id:"att-note",oninput:ev=>{st.note=ev.target.value}})),
     el("div",{class:"actions"},save,el("button",{class:"btn ghost small",type:"button",onclick:()=>{addingFor=null;renderDetail();}},"Cancel"),status));
 }
@@ -578,7 +594,10 @@ function editForm(i,a){
   });
   return el("div",{class:"form"},
     el("p",{class:"note",text:"Changes show on the page as soon as you save. Ask Claude to sync the hub to write them into the repo; phase moves are checked against the gate again then."}),
-    el("div",{class:"row"},inp("name","Name"),el("label",{},"Priority",el("select",{onchange:ev=>{d.priority=ev.target.value}},["P0","P1","P2"].map(p=>el("option",{value:p,text:p,selected:d.priority===p})))),inp("owner","Owner"),inp("team","Team"),inp("target","Target",{placeholder:"e.g. 2027-01"})),
+    el("div",{class:"row"},inp("name","Name"),el("label",{},"Priority",el("select",{onchange:ev=>{d.priority=ev.target.value}},["P0","P1","P2"].map(p=>el("option",{value:p,text:p,selected:d.priority===p})))),inp("owner","Owner"),
+      el("label",{},"Team",el("select",{onchange:ev=>{d.team=ev.target.value}},
+        el("option",{value:"",text:"Select a team",selected:!d.team}),
+        TEAMS.concat(d.team&&!TEAMS.includes(d.team)?[d.team]:[]).map(t=>el("option",{value:t,text:t,selected:d.team===t})))),inp("target","Target",{placeholder:"e.g. 2027-01"})),
     el("label",{},"Problem",el("textarea",{oninput:ev=>{d.problem=ev.target.value}},d.problem||"")),
     phaseBox,
     el("div",{},el("p",{class:"label",style:"margin-bottom:6px",text:"Blockers"}),blkBox),
@@ -684,7 +703,8 @@ $("#new-create").addEventListener("click",async()=>{
   try{
     await putEdit(slug,cur=>{cur.create={name,problem:$("#new-problem").value.trim(),priority:$("#new-priority").value,
       owner:$("#new-owner").value.trim(),team:$("#new-team").value.trim(),target_release:$("#new-target").value.trim()};});
-    for(const id of ["#new-name","#new-problem","#new-team","#new-target"]) $(id).value="";
+    for(const id of ["#new-name","#new-problem","#new-target"]) $(id).value="";
+    $("#new-team").value="";
     $("#new-slug").textContent="—"; $("#new-panel").classList.add("hidden"); say("");
     picked=slug; flashSlug=slug; render(); $("#detail").scrollIntoView({behavior:"smooth",block:"start"});
   }catch(err){say(err&&err.code==="permission_denied"?"You don't have permission to add initiatives here.":"Couldn't create it. Try again.");}
