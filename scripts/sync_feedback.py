@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 LIB = ROOT / "feedback" / "library.json"
-FIELDS = ("quote", "summary", "type", "sentiment", "tags", "source", "customer", "contact", "segment",
+FIELDS = ("quote", "summary", "type", "sentiment", "tags", "source", "customer", "contact", "link", "segment",
           "date", "initiative", "requirements", "createdAt", "updatedAt")
 
 def main():

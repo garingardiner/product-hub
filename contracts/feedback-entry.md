@@ -15,6 +15,7 @@ Collected on the Feedback Board; snapshotted to `feedback/library.json`.
 | `source` | `interview`, `sales-call`, `support-ticket`, `survey`, `usage-data`, `other` |
 | `customer`, `segment`, `date` | Who and when. Segment is picked on the board: `aerospace`, `automotive`, `power` (add more in the board's `SEGMENTS` list). |
 | `contact` | Optional name and role of the person who said it (e.g. "Dana Lee, AM lead") |
+| `link` | Optional https link to the interview: recording, notes or transcript. Editable or removable later on the board |
 | `initiative` | Optional initiative slug this entry was collected for, picked from the board's initiative list |
 | `updatedAt` | Set by the board when an entry is edited after saving |
 | `requirements` | Optional requirement IDs it supports (`R-001`) |

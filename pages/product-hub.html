@@ -252,7 +252,7 @@ textarea{width:100%;min-height:72px;resize:vertical;line-height:1.45}
         <h3>Entries</h3>
         <input type="search" id="fb-search" placeholder="Search quotes, customers, tags" aria-label="Search feedback" style="width:min(100%,22rem)">
         <div class="scroll fb-table"><table id="fb-table">
-          <thead><tr><th>Date</th><th>ID</th><th>Customer</th><th>Contact</th><th>Segment</th><th>Type</th><th>Feedback</th><th>Tags</th><th>Initiative</th></tr></thead>
+          <thead><tr><th>Date</th><th>ID</th><th>Customer</th><th>Contact</th><th>Segment</th><th>Type</th><th>Feedback</th><th>Tags</th><th>Initiative</th><th>Interview</th></tr></thead>
           <tbody></tbody>
         </table></div>
       </div>
@@ -483,7 +483,8 @@ function renderDetail(){
       el("div",{class:"panel"},el("h3",{text:"Blockers"}),i.blockers.length?el("ul",{style:"margin:0;padding-left:1.1rem"},i.blockers.map(t=>el("li",{text:t}))):el("p",{class:"note",text:"No blockers."})),
       phasesCard(i,a),
       el("div",{class:"panel"},el("h3",{text:"Customer feedback"}),el("p",{class:"note",text:"Feedback Board entries linked to this initiative, and entries it cites as evidence."}),
-        table([{key:"date",label:"Date"},{key:"customer",label:"Customer"},{key:"type",label:"Type",cls:"cap"},{key:"text",label:"Feedback",cls:"wide"},{key:"cited",label:"Evidence for"}],fb,"No feedback linked yet. Pick this initiative on the Feedback Board.")),
+        table([{key:"date",label:"Date"},{key:"customer",label:"Customer"},{key:"type",label:"Type",cls:"cap"},{key:"text",label:"Feedback",cls:"wide"},{key:"cited",label:"Evidence for"},
+          {key:"link",label:"Interview",render:r=>/^https:\/\//.test(r.link||"")?el("a",{href:r.link,target:"_blank",rel:"noopener",text:"Open"}):document.createTextNode("")}],fb,"No feedback linked yet. Pick this initiative on the Feedback Board.")),
       el("div",{class:"panel"},el("h3",{text:"Requirements"}),table([{key:"id",label:"ID"},{key:"title",label:"Title",cls:"wide"},{key:"priority",label:"Priority",pill:true},{key:"status",label:"Status",pill:true},{key:"evidence",label:"Evidence",num:true}],rows("requirements").filter(r=>r.slug===i.slug),"No requirements yet.")),
       el("div",{class:"panel"},el("h3",{text:"Hypotheses"}),table([{key:"id",label:"ID"},{key:"statement",label:"Statement",cls:"wide"},{key:"verdict",label:"Verdict",pill:true}],rows("hypotheses").filter(r=>r.slug===i.slug),"No hypotheses yet.")),
       el("div",{class:"panel"},el("h3",{text:"Success metrics"}),table([{key:"name",label:"Metric",cls:"wide"},{key:"type",label:"Type",cls:"cap"},{key:"target",label:"Target"},{key:"method",label:"Method"},{key:"review_date",label:"Review"}],rows("metrics").filter(r=>r.slug===i.slug),"No metrics yet.")),
@@ -855,8 +856,9 @@ function renderFeedback(){
   const nameOf=s=>(rows("initiatives").find(r=>r.slug===s)||{}).name||s;
   $("#fb-table tbody").replaceChildren(...(list.length?list.map(f=>el("tr",{},
     el("td",{text:f.date}),el("td",{text:f.id}),el("td",{text:f.customer}),el("td",{text:f.contact}),el("td",{text:SEG[f.segment]||f.segment}),
-    el("td",{class:"cap",text:f.type}),el("td",{class:"wide",text:f.quote?`“${f.quote}”`:f.summary}),el("td",{text:f.tags}),el("td",{text:f.initiative?nameOf(f.initiative):""}))):
-    [el("tr",{},el("td",{colspan:"9",class:"note",text:fb.length?"No entries match.":"No feedback synced yet."}))]));
+    el("td",{class:"cap",text:f.type}),el("td",{class:"wide",text:f.quote?`“${f.quote}”`:f.summary}),el("td",{text:f.tags}),el("td",{text:f.initiative?nameOf(f.initiative):""}),
+    el("td",{},/^https:\/\//.test(f.link||"")?el("a",{href:f.link,target:"_blank",rel:"noopener",text:"Open"}):""))):
+    [el("tr",{},el("td",{colspan:"10",class:"note",text:fb.length?"No entries match.":"No feedback synced yet."}))]));
 }
 $("#fb-search").addEventListener("input",renderFeedback);
 $("#archived-toggle").addEventListener("click",()=>{showArchived=!showArchived;render();});
