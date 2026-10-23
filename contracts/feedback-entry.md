@@ -11,7 +11,8 @@ Collected on the Feedback Board; snapshotted to `feedback/library.json`.
 | `summary` | One plain sentence in our words. |
 | `type` | `pain-point`, `feature-request`, `bug`, `workaround`, `question`, `churn-risk`, `praise` |
 | `sentiment` | `negative`, `neutral`, `positive` |
-| `tags` | 2–5 topic tags (see below) |
+| `tags` | 1–3 tags from the board's approved tag list (see below) |
+| `suggested_tags` | New tags waiting for the board owner to approve, merge or reject. Not used for search until approved |
 | `source` | `interview`, `sales-call`, `support-ticket`, `survey`, `usage-data`, `other` |
 | `customer`, `segment`, `date` | Who and when. Segment is picked on the board: `aerospace`, `automotive`, `power` (add more in the board's `SEGMENTS` list). |
 | `contact` | Optional name and role of the person who said it (e.g. "Dana Lee, AM lead") |
@@ -21,13 +22,15 @@ Collected on the Feedback Board; snapshotted to `feedback/library.json`.
 | `requirements` | Optional requirement IDs it supports (`R-001`) |
 
 ## Tagging conventions
-- Lowercase and hyphenated: `bulk-export`, `audit-reporting`, `sso`.
-- Tags describe **what the feedback is about** (product area, workflow, capability), not its type, segment, or customer.
-  Those have their own fields and filters.
-- Reuse before creating. The board shows Claude the existing tags and asks it to reuse them; humans should do the same.
-- Prefer the noun people search for: `permissions`, not `cant-share-with-team`.
-- Keep the set healthy: monthly, run `python scripts/feedback.py tags` and merge near-duplicates on the board
-  (e.g. `export` vs `exports` vs `data-export`).
+- **Controlled list.** The board's `tags` collection is the approved list (`tags/<tag>`: `{status, description}`),
+  owned by the board owner. Claude only applies tags from it, at most 3 per entry.
+- Anything new (from Claude or a person) is saved as a **suggested** tag. The owner reviews suggestions in the board's
+  Tags panel: Approve (adds it to the list and to those entries), Merge into an existing tag, or Reject.
+  The same panel merges or retires approved tags and rewrites every entry that has them.
+- Tags name a broad **product area** (e.g. `geometry-modeling`, `cfd`, `automation`), lowercase and hyphenated.
+  Never a customer, segment, type, initiative, product or block name (no `loft-block`): those have their own fields.
+- Prefer the noun people search for: `export`, not `cant-export-stl`.
+- Keep the list short (about 20–30). Check monthly with `python scripts/feedback.py tags`.
 
 ## Quality bar
 - A quote that doesn't appear in the source notes is a bug. The board flags it; fix it before saving.

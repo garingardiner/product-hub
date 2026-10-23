@@ -1,5 +1,5 @@
 {
-  "exported_at": "2026-10-23T02:18:25Z",
+  "exported_at": "2026-10-23T02:20:11Z",
   "source": "Feedback Board (synced by Claude)",
   "count": 4,
   "entries": [
@@ -10,9 +10,10 @@
       "type": "feature-request",
       "sentiment": "neutral",
       "tags": [
-        "loft-block",
-        "implicit-geometry"
+        "geometry-modeling",
+        "implicit-modeling"
       ],
+      "suggested_tags": [],
       "source": "interview",
       "customer": "Apple",
       "contact": "",
@@ -30,11 +31,11 @@
       "type": "feature-request",
       "sentiment": "neutral",
       "tags": [
-        "adjoint-solvers",
         "shape-optimization",
-        "implicit-geometry",
-        "drag-minimization"
+        "implicit-modeling",
+        "cfd"
       ],
+      "suggested_tags": [],
       "source": "interview",
       "customer": "JetZero",
       "contact": "",
@@ -53,9 +54,9 @@
       "type": "feature-request",
       "sentiment": "positive",
       "tags": [
-        "notebook-api",
         "automation"
       ],
+      "suggested_tags": [],
       "source": "interview",
       "customer": "Planes r Us",
       "contact": "",
@@ -73,8 +74,9 @@
       "type": "feature-request",
       "sentiment": "neutral",
       "tags": [
-        "loft-block"
+        "geometry-modeling"
       ],
+      "suggested_tags": [],
       "source": "interview",
       "customer": "ACME Aerospace",
       "contact": "",
