@@ -1,7 +1,7 @@
 name: "Sweep Block"
 slug: "2026-q4-sweep-block"
 problem: "Add block/s to enable sweep automation"
-phase: discovery
+phase: engineering
 priority: P1
 owner: "Tristan Antonsen"
 team: "Build"
@@ -15,7 +15,8 @@ collaborators:
   marketing: []
 target_release: "2026-12"
 blockers: []
-decisions: []
+decisions:
+- {date: '2026-10-22', decision: 'Moved from discovery to engineering, passing over feedback, spec; open at the time: concept is not-started', by: Product Hub page}
 artifacts:
   concept: {form: claude-doc, link: "", status: not-started, owner: ""}
   feedback: {form: data, path: feedback.yaml, status: not-started, owner: ""}
