@@ -199,7 +199,7 @@ textarea{width:100%;min-height:72px;resize:vertical;line-height:1.45}
 
   <section class="section" id="pipeline">
     <h2>Phase pipeline</h2>
-    <p class="note">Each phase has a gate. An initiative moves on only when its gate passes. Select one to open it.</p>
+    <p class="note">Each phase has a gate checklist of what's usually done before moving on. Select an initiative to open it.</p>
     <div class="pipe" id="pipe"></div>
   </section>
 
@@ -460,9 +460,11 @@ function renderDetail(){
       :el("button",{class:"btn ghost small",type:"button",onclick:()=>{confirmDiscard=true;renderDetail();}},isNew?"Delete new initiative":"Discard edits")):null):null;
 
   const gate=nxt?el("div",{class:"gate "+(g.length?"open":"pass")},
-    el("p",{class:"label",style:"color:inherit",text:g.length?`To move to ${PHASE_NAME[nxt]}`:`Gate passes: ready for ${PHASE_NAME[nxt]}`}),
+    el("p",{class:"label",style:"color:inherit",text:g.length?`Gate checklist before ${PHASE_NAME[nxt]}`:`Gate passes: ready for ${PHASE_NAME[nxt]}`}),
     g.length?el("ul",{},g.map(t=>el("li",{text:t}))):null,
-    canEdit&&!g.length?el("div",{class:"actions"},el("button",{class:"btn small",type:"button",onclick:()=>movePhase(i.slug,nxt)},`Move to ${PHASE_NAME[nxt]}`)):null):null;
+    canEdit?el("div",{class:"actions"},
+      el("button",{class:g.length?"btn ghost small":"btn small",type:"button",onclick:()=>movePhase(i.slug,nxt)},g.length?`Move to ${PHASE_NAME[nxt]} anyway`:`Move to ${PHASE_NAME[nxt]}`),
+      el("span",{class:"note",style:"color:inherit",text:"Or pick any phase in Edit initiative."})):null):null;
 
   const fb=feedbackFor(i.slug);
   const decs=rows("decisions").filter(d=>d.slug===i.slug).concat(((e||{}).decisions_add||[]).map(d=>({...d,_pending:true})));
@@ -606,8 +608,6 @@ async function toggleSkip(i,p){
   const arr=PHASES.filter(x=>s.has(x)), baseArr=b.skip_phases||[];
   try{await putEdit(i.slug,cur=>{
     if(JSON.stringify(arr)===JSON.stringify(baseArr)) delete cur.patch.skip_phases; else cur.patch.skip_phases=arr;
-    // a pending phase move may no longer be valid once the skips change; drop it rather than sync a bad move
-    if(cur.patch.phase&&cur.patch.phase!==nextOf(b.phase,arr)&&PHASES.indexOf(cur.patch.phase)>PHASES.indexOf(b.phase)) delete cur.patch.phase;
   });}catch(_){}
 }
 function newAttId(){
@@ -694,13 +694,10 @@ function startEdit(slug){
 function editForm(i,a){
   const d=draft, b=base(i.slug);
   const inp=(key,label,attrs={})=>el("label",{class:key==="name"?"wide-field":null},label,el("input",{type:"text",value:d[key]||"",oninput:ev=>{d[key]=ev.target.value},...attrs}));
+  // Any phase can be chosen; the current gate's open items are shown as a checklist and logged with a forward move
   const phaseOpts=()=>{
-    const cur=b.phase, ci=PHASES.indexOf(cur), nx=nextOf(cur,i.skip);
-    const opts=PHASES.slice(0,ci+1);
-    const artList=a.map(x=>({...x,status:d.art[x.key].status}));
-    const nxGaps=nx?gaps(i.slug,cur,artList):["Last phase"];
-    if(nx&&!nxGaps.length) opts.push(nx);
-    return {opts,nx,nxGaps};
+    const cur=b.phase, artList=a.map(x=>({...x,status:d.art[x.key].status}));
+    return {opts:PHASES, cur, open:gaps(i.slug,cur,artList)};
   };
   const blkBox=el("div");
   const drawBlk=()=>blkBox.replaceChildren(...d.blockers.map((t,k)=>el("div",{class:"blk"},
@@ -710,10 +707,12 @@ function editForm(i,a){
   drawBlk();
   const phaseBox=el("div");
   const drawPhase=()=>{
-    const {opts,nx,nxGaps}=phaseOpts();
+    const {opts,cur,open}=phaseOpts();
     if(!opts.includes(d.phase)) d.phase=b.phase;
-    phaseBox.replaceChildren(el("label",{},"Phase",el("select",{onchange:ev=>{d.phase=ev.target.value}},opts.map(p=>el("option",{value:p,text:PHASE_NAME[p]+(p===b.phase?" (current)":""),selected:d.phase===p})))),
-      nx&&nxGaps.length?el("p",{class:"note",style:"margin-top:6px",text:`Can't move to ${PHASE_NAME[nx]} yet: ${nxGaps.join("; ")}.`}):null);
+    const ahead=PHASES.indexOf(d.phase)>PHASES.indexOf(cur);
+    phaseBox.replaceChildren(el("label",{},"Phase",el("select",{onchange:ev=>{d.phase=ev.target.value;drawPhase();}},
+        opts.map(p=>el("option",{value:p,text:PHASE_NAME[p]+(p===cur?" (current)":"")+(i.skip.includes(p)?" (not needed)":""),selected:d.phase===p})))),
+      ahead&&open.length?el("p",{class:"note",style:"margin-top:6px",text:`Still open in the ${PHASE_NAME[cur]} gate: ${open.join("; ")}. You can move anyway; these are noted in the decision log.`}):null);
   };
   drawPhase();
   const artRows=a.map(x=>{
@@ -725,7 +724,7 @@ function editForm(i,a){
       el("td",{},fileForm?el("span",{class:"note",text:`${x.location} (in repo)`}):el("input",{type:"text",value:v.link,placeholder:"https://…","aria-label":`${x.artifact} link`,style:"width:min(100%,18rem)",oninput:ev=>{v.link=ev.target.value}})));
   });
   return el("div",{class:"form"},
-    el("p",{class:"note",text:"Changes show on the page as soon as you save, and sync to the repo automatically within about 15 minutes. Phase moves are checked against the gate again when they sync."}),
+    el("p",{class:"note",text:"Changes show on the page as soon as you save, and sync to the repo automatically within about 15 minutes. Moving phase with open gate items is allowed; they're noted in the decision log."}),
     el("div",{class:"row"},inp("name","Name"),el("label",{},"Priority",el("select",{onchange:ev=>{d.priority=ev.target.value}},["P0","P1","P2"].map(p=>el("option",{value:p,text:p,selected:d.priority===p})))),choiceSelect("Owner",OWNERS,d.owner,v=>{d.owner=v}),
       choiceSelect("Team",TEAMS,d.team,v=>{d.team=v}),
       choiceSelect("Size",SIZES,d.size,v=>{d.size=v}),

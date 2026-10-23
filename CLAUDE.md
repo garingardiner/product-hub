@@ -15,9 +15,10 @@ The repo always knows **where each artifact is, what state it's in, and what it 
    If a doc and the YAML disagree, the YAML wins; fix the doc.
 4. **Requirements are traceable.** Every requirement has a stable ID (`R-001`). Feedback links to requirements,
    scope items reference requirement IDs, and Feature/Benefits entries reference the requirements they ship.
-5. **Gates before moving phases.** Never advance `phase` until the gate below passes. If it doesn't, list what's missing.
-   Not every initiative needs every phase: phases listed in its `skip_phases` are not needed, have no gate, and are
-   skipped over when it advances (it moves to the next phase it still needs). Marking a phase not needed is logged as a decision.
+5. **Gates are a checklist, not a lock.** Each phase's gate below is what's usually done before moving on. Any phase can be
+   chosen, forward or back. Before a forward move, list what's still open; if the user still wants to move, move it and
+   record the open items in the decision for that move. Phases in an initiative's `skip_phases` are not needed: no
+   checklist, and they're passed over when suggesting the next phase. Marking a phase not needed is logged as a decision.
 6. **Run `python scripts/status.py`** after changing any manifest. It validates manifests and regenerates `ROADMAP.md`.
 7. **Never invent customer evidence.** Feedback must come from a real source (interview, ticket, call, survey) and be
    cited by its library ID (`F-YYMMDD-XXXX`). If evidence is thin, say so in the artifact.
@@ -97,7 +98,7 @@ draft, in-review, approved and n/a; `synthesized` and `superseded` stay valid in
     `batch` `set` each `snapshot/<name>` from `build/hub/db/<name>.json`.
   - **Sync hub**:
     1. `ArtifactData` `list` `edits` (`out_dir` = `build/hub-edits`); `python scripts/apply_hub_edits.py build/hub-edits`,
-       and tell the user every line it prints (rejected values, phase moves held back by an open gate).
+       and tell the user every line it prints (rejected values, phase moves made with open gate items).
     2. For each initiative it created: add it to the Feedback Board's `initiatives` collection, and fill in the concept
        questions with the user later (`/new-initiative` steps 3–5). For each one it archived or deleted: remove it from
        that collection (restored: add it back). Feedback entries linked to a deleted initiative stay on the board.

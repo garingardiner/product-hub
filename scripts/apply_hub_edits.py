@@ -9,7 +9,7 @@ attachments_add, attachments_remove}}).
 
 - `create` makes initiatives/<slug>/ from the template with the given basics.
 - Edits are validated and written to initiative.yaml with comments kept.
-- Phase moves only forward one step when the gate passes (or backward).
+- Any phase can be chosen; a forward move records the gate items still open at the time in its decision.
 - Attachments are recorded under `attachments:`; a link used as an artifact becomes that artifact's link.
 - `patch.archived` archives or restores (logged as a decision); `delete` removes the initiative's folder.
 Writes <dir>/applied.json: {"applied": [{id, version}], "to_read": [attachments Claude still has to read]}.
@@ -197,21 +197,18 @@ def apply_one(slug, data, yaml):
         if target not in status.PHASES or cur not in status.PHASES:
             msgs.append(f"{slug}: phase '{target}' not allowed")
         else:
+            # Gates are a checklist, not a lock: any phase can be chosen, and open items are logged with the move
             ti, ci = status.PHASES.index(target), status.PHASES.index(cur)
             if ti < ci:
                 note = f"Phase moved back from {cur} to {target}"
-            elif target == status.next_phase(doc):
-                _, errors, gate = status.check(path.parent)
-                if gate or errors:
-                    msgs.append(f"{slug}: not moved to {target}; gate open: {'; '.join(gate + errors)}")
-                    target = None
-                skipped = [p for p in status.PHASES[ci + 1:ti]]
-                note = (f"Advanced from {cur} to {target}" + (f", skipping {', '.join(skipped)} (not needed)" if skipped else "")
-                        + (" (gate not needed)" if cur in (doc.get("skip_phases") or []) else " (gate passed)"))
             else:
-                msgs.append(f"{slug}: can't move from {cur} to {target}; the next phase it needs is "
-                            f"{status.next_phase(doc) or 'none'}")
-                target = None
+                _, errors, gate = status.check(path.parent)
+                skip = set(doc.get("skip_phases") or [])
+                passed = [p for p in status.PHASES[ci + 1:ti] if p not in skip]
+                note = f"Moved from {cur} to {target}"
+                if passed:
+                    note += f", passing over {', '.join(passed)}"
+                note += f"; open at the time: {'; '.join(gate)}" if gate else "; gate passed"
             if target:
                 doc["phase"] = target
                 doc.setdefault("decisions", []).append(flow({
