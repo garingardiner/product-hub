@@ -257,6 +257,7 @@ const PHASE_ARTS={discovery:["concept"],feedback:["feedback"],spec:["project_spe
 // Mirrors initiatives/_template/initiative.yaml, for initiatives created here and not synced yet
 const TEMPLATE_ARTS=[["concept","claude-doc"],["feedback","data","feedback.yaml"],["project_spec","claude-doc"],["ux_spec","figma"],["success_metrics","data","metrics.yaml"],["engineering_scope","data","scope.yaml"],["feature_benefits","claude-artifact"]];
 const MAX_UPLOAD=20*1024*1024;
+const isFileForm=f=>["repo-md","data"].includes(f);
 const TEAMS=["Build","Analyze","Orchestrate"];   // keep in sync with TEAMS in scripts/apply_hub_edits.py
 const OWNERS=["Tristan Antonsen","Bryce Mazurowski","Patrick Ogdin"];   // keep in sync with OWNERS there
 const SIZES=["Small","Medium","Large"];   // keep in sync with SIZES there
@@ -338,7 +339,10 @@ function init(slug){
 const nextOf=(phase,skip)=>PHASES.slice(PHASES.indexOf(phase)+1).find(p=>!skip.includes(p));
 function arts(slug){
   const ch=(EDITS[slug]||{}).artifacts||{};
-  return baseArts(slug).map(a=>{const c=ch[a.key]||{};return {...a,status:c.status??a.status,owner:c.owner??a.owner,location:c.link??a.location,pending:!!Object.keys(c).length};});
+  // Repo-file artifacts (data/repo-md) keep their path in `location` and may also have a `link`; others' link is their location
+  return baseArts(slug).map(a=>{const c=ch[a.key]||{};const file=isFileForm(a.form);
+    const link=c.link??(file?(a.link||""):a.location);
+    return {...a,status:c.status??a.status,owner:c.owner??a.owner,link,location:file?a.location:link,pending:!!Object.keys(c).length};});
 }
 function gaps(slug,phase,artList){
   const b=base(slug), req=GATES[phase]||{}, out=[];
@@ -579,7 +583,9 @@ function phasesCard(i,a){
         el("ul",{class:"items"},
           pa.map(x=>el("li",{class:x.pending?"pend-row":""},
             el("div",{class:"row1"},el("span",{class:"t",text:x.artifact}),pill(x.status)),
-            x.location?el("span",{class:"meta"},/^https:\/\//.test(x.location)?el("a",{href:x.location,target:"_blank",rel:"noopener",text:x.location}):x.location):el("span",{class:"meta",text:"No link yet"}))),
+            isFileForm(x.form)&&x.location?el("span",{class:"meta",text:`Repo file: ${x.location}`}):null,
+            /^https:\/\//.test(x.link||"")?el("span",{class:"meta"},el("a",{href:x.link,target:"_blank",rel:"noopener",text:x.link}))
+              :!isFileForm(x.form)?el("span",{class:"meta",text:x.link||"No link yet"}):null)),
           pl.map(x=>{
             const href=attHref(x);
             const links=[
@@ -619,8 +625,8 @@ function attachForm(i,p,a){
   const st={mode:"link",phase:p,title:"",url:"",file:null,use_as:"",note:""};
   const say=t=>{status.textContent=t;};
   const status=el("span",{class:"status",role:"status"});
-  // Artifacts a link or file can fill for the chosen phase (YAML data artifacts can't)
-  const usable=ph=>a.filter(x=>PHASE_ARTS[ph].includes(x.key)&&x.form!=="data");
+  // Artifacts a link or file can fill for the chosen phase (repo-file artifacts get the link beside their file)
+  const usable=ph=>a.filter(x=>PHASE_ARTS[ph].includes(x.key));
   const useSel=el("select",{id:"att-use",onchange:ev=>{st.use_as=ev.target.value}});
   const fillUse=()=>{st.use_as="";useSel.replaceChildren(el("option",{value:"",text:"Supporting material"}),
     ...usable(st.phase).map(x=>el("option",{value:x.key,text:`${x.artifact} (sets its link)`})));};
@@ -687,7 +693,7 @@ function feedbackFor(slug){
 function startEdit(slug){
   const i=init(slug), e=EDITS[slug]||{};
   draft={slug,name:i.name,problem:i.problem,priority:i.priority,owner:i.owner,team:i.team,size:i.size,target:i.target,phase:i.phase,
-    blockers:[...i.blockers],art:Object.fromEntries(arts(slug).map(a=>[a.key,{status:a.status,owner:a.owner,link:a.location}])),
+    blockers:[...i.blockers],art:Object.fromEntries(arts(slug).map(a=>[a.key,{status:a.status,owner:a.owner,link:a.link||""}])),
     decisions:[...(e.decisions_add||[])],newDec:{date:today(),decision:"",by:meName}};
   confirmDiscard=false; renderDetail();
 }
@@ -716,12 +722,14 @@ function editForm(i,a){
   };
   drawPhase();
   const artRows=a.map(x=>{
-    const v=d.art[x.key]; const fileForm=["repo-md","data"].includes(x.form);
+    const v=d.art[x.key]; const fileForm=isFileForm(x.form);
     return el("tr",{},
       el("td",{text:x.artifact}),
       el("td",{},el("select",{"aria-label":`${x.artifact} status`,onchange:ev=>{v.status=ev.target.value;drawPhase();}},STATUSES.concat(STATUSES.includes(v.status)?[]:[v.status]).map(s=>el("option",{value:s,text:STATUS_LABEL[s]||s,selected:v.status===s})))),
       el("td",{},el("input",{type:"text",value:v.owner,"aria-label":`${x.artifact} owner`,style:"width:9rem",oninput:ev=>{v.owner=ev.target.value}})),
-      el("td",{},fileForm?el("span",{class:"note",text:`${x.location} (in repo)`}):el("input",{type:"text",value:v.link,placeholder:"https://…","aria-label":`${x.artifact} link`,style:"width:min(100%,18rem)",oninput:ev=>{v.link=ev.target.value}})));
+      el("td",{},el("div",{style:"display:grid;gap:3px"},
+        fileForm?el("span",{class:"note",text:`Repo file: ${x.location}`}):null,
+        el("input",{type:"text",value:v.link,placeholder:fileForm?"Optional link, e.g. Asana or Jira":"https://…","aria-label":`${x.artifact} link`,style:"width:min(100%,18rem)",oninput:ev=>{v.link=ev.target.value}}))));
   });
   return el("div",{class:"form"},
     el("p",{class:"note",text:"Changes show on the page as soon as you save, and sync to the repo automatically within about 15 minutes. Moving phase with open gate items is allowed; they're noted in the decision log."}),
@@ -775,7 +783,8 @@ async function saveDraft(){
     const v=d.art[a.key], c={};
     if(v.status!==a.status) c.status=v.status;
     if(v.owner.trim()!==a.owner) c.owner=v.owner.trim();
-    if(!["repo-md","data"].includes(a.form)&&v.link.trim()!==a.location) c.link=v.link.trim();
+    const baseLink=isFileForm(a.form)?(a.link||""):a.location;
+    if(v.link.trim()!==baseLink) c.link=v.link.trim();
     if(Object.keys(c).length) artCh[a.key]=c;
   }
   const decs=[...d.decisions];

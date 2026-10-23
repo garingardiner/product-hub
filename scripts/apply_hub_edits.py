@@ -132,7 +132,8 @@ def apply_one(slug, data, yaml):
         if "owner" in ch:
             a["owner"] = str(ch["owner"]).strip()
         if "link" in ch:
-            a["path" if a.get("form") in ("repo-md", "data") else "link"] = str(ch["link"]).strip()
+            # Repo-file artifacts keep their path and gain an optional link (e.g. an Asana project for the scope)
+            a["link"] = str(ch["link"]).strip()
         if "status" in ch:
             st = ch["status"]
             loc = a.get("path") if a.get("form") in ("repo-md", "data") else a.get("link")
@@ -183,8 +184,11 @@ def apply_one(slug, data, yaml):
         doc.setdefault("attachments", []).append(flow(rec))
         if kind == "link" and use_as in arts:
             a = arts[use_as]
-            a["form"], a["link"] = form_for(rec["link"]), rec["link"]
-            a.pop("path", None)
+            if a.get("form") in ("repo-md", "data"):
+                a["link"] = rec["link"]          # keep the repo file; add the link beside it
+            else:
+                a["form"], a["link"] = form_for(rec["link"]), rec["link"]
+                a.pop("path", None)
             if a.get("status") == "not-started":
                 a["status"] = "draft"
             msgs.append(f"{slug}: {use_as} now links to {rec['title']}")

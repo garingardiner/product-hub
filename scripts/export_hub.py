@@ -72,6 +72,7 @@ def main():
             rows["artifacts"].append({
                 "slug": slug, "key": key, "artifact": ARTIFACT_LABELS.get(key, key), "form": text(a.get("form")),
                 "status": text(a.get("status")), "owner": text(a.get("owner")), "location": text(loc),
+                "link": text(a.get("link")),
             })
         for r in reqs:
             rows["requirements"].append({

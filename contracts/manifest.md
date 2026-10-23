@@ -22,7 +22,7 @@ artifacts:
   <artifact_key>:            # concept, feedback, project_spec, ux_spec, success_metrics, engineering_scope, feature_benefits
     form: repo-md | data | claude-doc | claude-artifact | figma | asana | drive | other
     path: string             # for repo-md / data
-    link: string             # for everything else
+    link: string             # for everything else; repo-md/data artifacts may also have one (e.g. an Asana project)
     status: not-started | draft | in-review | approved | synthesized | superseded | n/a   # n/a: not needed, counts as done for the gate
     owner: string
 attachments:                 # links and files added per phase (usually from the Product Hub page)
