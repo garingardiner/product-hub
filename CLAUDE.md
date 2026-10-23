@@ -104,8 +104,6 @@ Allowed values for `form` in a manifest:
        If a link can't be read (no access, connector missing), say so and leave it `read: false`.
     4. `python scripts/status.py`; refresh the snapshot; `delete` each applied `edits/<slug>` at its version in
        `applied.json`; commit and push.
-  - **Ways to collect feedback** (survey/form links on the page) live only in the hub's `feedback_links` collection
-    (`{title, url, note}`); editors change them on the page, and they need no sync.
   - **Scheduled sync** (the page's Sync now button; a scheduled task checks every 15 minutes):
     1. `ArtifactData` `get` `sync/request` and `sync/status` on the hub. If there's no request, or
        `request.requestedAt` is not later than `status.lastRunAt`, stop here and do nothing else.
