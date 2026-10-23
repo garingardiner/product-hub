@@ -647,6 +647,14 @@ function formButton(i,x){
     el("button",{class:n||!canEdit?"btn ghost small":"btn small",type:"button",onclick:()=>openForm(i.slug,x.key)},canEdit?(n?"Open form":"Fill out"):"View form"),
     el("span",{class:"meta",text:`${n} of ${FORM_ARTS[x.key].sections.length} sections${sp.pending?" · unsynced":""}`}));
 }
+// The same forms from Edit initiative's artifact table; the edit stays open underneath
+function editFormCell(slug,key){
+  if(!FORM_ARTS[key]) return el("span",{class:"note",text:"—"});
+  const sp=formData(slug,key), n=formDone(key,sp.data);
+  return el("div",{style:"display:grid;gap:2px;justify-items:start"},
+    el("button",{class:n?"btn ghost small":"btn small",type:"button",onclick:()=>openForm(slug,key)},n?"Open form":"Fill out"),
+    el("span",{class:"note",style:"font-size:.78rem;white-space:nowrap",text:`${n} of ${FORM_ARTS[key].sections.length} sections${sp.pending?" · unsynced":""}`}));
+}
 async function toggleSkip(i,p){
   const b=base(i.slug), s=new Set(i.skip);
   s.has(p)?s.delete(p):s.add(p);
@@ -777,7 +785,10 @@ function openForm(slug,key){
 }
 function closeForm(force){
   if(form&&form.dirty&&!force){form.confirmClose=true;drawFoot();return;}
+  const slug=form&&form.slug;
   form=null; $("#art-dialog").close(); $("#art-dialog").replaceChildren();
+  // Edit initiative doesn't redraw while open; refresh just its form progress cells
+  if(draft&&draft.slug===slug) document.querySelectorAll("[data-form-cell]").forEach(td=>td.replaceChildren(editFormCell(slug,td.getAttribute("data-form-cell"))));
 }
 $("#art-dialog").addEventListener("cancel",ev=>{if(form&&form.dirty){ev.preventDefault();form.confirmClose=true;drawFoot();}});
 const touch=()=>{form.dirty=true;form.confirmClose=false;form.saying="";drawProgress();drawFoot();};
@@ -1431,7 +1442,8 @@ function editForm(i,a){
       el("td",{},el("select",{"aria-label":`${x.artifact} status`,onchange:ev=>{v.status=ev.target.value;drawPhase();}},STATUSES.concat(STATUSES.includes(v.status)?[]:[v.status]).map(s=>el("option",{value:s,text:STATUS_LABEL[s]||s,selected:v.status===s})))),
       el("td",{},el("input",{type:"text",value:v.owner,"aria-label":`${x.artifact} owner`,style:"width:9rem",oninput:ev=>{v.owner=ev.target.value}})),
       el("td",{},el("div",{style:"display:grid;gap:3px"},
-        el("input",{type:"text",value:v.link,placeholder:"https:// (Drive, Figma, Asana, Jira…)","aria-label":`${x.artifact} link`,style:"width:min(100%,18rem)",oninput:ev=>{v.link=ev.target.value}}))));
+        el("input",{type:"text",value:v.link,placeholder:"https:// (Drive, Figma, Asana, Jira…)","aria-label":`${x.artifact} link`,style:"width:min(100%,18rem)",oninput:ev=>{v.link=ev.target.value}}))),
+      el("td",{"data-form-cell":x.key},editFormCell(i.slug,x.key)));
   });
   return el("div",{class:"form"},
     el("p",{class:"note",text:"Changes show on the page as soon as you save, and sync to the repo automatically within about 15 minutes. Moving phase with open gate items is allowed; they're noted in the decision log."}),
@@ -1443,7 +1455,7 @@ function editForm(i,a){
     phaseBox,
     el("div",{},el("p",{class:"label",style:"margin-bottom:6px",text:"Blockers"}),blkBox),
     el("div",{},el("p",{class:"label",style:"margin-bottom:6px",text:"Artifacts"}),el("div",{class:"scroll"},el("table",{},
-      el("thead",{},el("tr",{},["Artifact","Status","Owner","Link"].map(t=>el("th",{text:t})))),el("tbody",{},artRows)))),
+      el("thead",{},el("tr",{},["Artifact","Status","Owner","Link","Form"].map(t=>el("th",{text:t})))),el("tbody",{},artRows)))),
     el("div",{},el("p",{class:"label",style:"margin-bottom:6px",text:"Log a decision"}),
       d.decisions.length?el("ul",{style:"margin:0 0 8px;padding-left:1.1rem"},d.decisions.map((x,k)=>el("li",{},`${x.date}: ${x.decision} (${x.by}) `,el("button",{class:"btn ghost small",type:"button",onclick:()=>{d.decisions.splice(k,1);renderDetail();}},"Remove")))):null,
       el("div",{class:"row"},
