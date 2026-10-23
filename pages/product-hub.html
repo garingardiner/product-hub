@@ -585,8 +585,7 @@ function phasesCard(i,a){
           pa.map(x=>el("li",{class:x.pending?"pend-row":""},
             el("div",{class:"row1"},el("span",{class:"t",text:x.artifact}),pill(x.status)),
             /^https:\/\//.test(x.link||"")?el("span",{class:"meta"},el("a",{href:x.link,target:"_blank",rel:"noopener",text:x.link}))
-              :el("span",{class:"meta",text:x.link||"No link yet"}),
-            isFileForm(x.form)&&x.location?el("span",{class:"meta",text:`Data also kept in the repo: ${x.location}`}):null)),
+              :el("span",{class:"meta",text:x.link||"No link yet"}))),
           pl.map(x=>{
             const href=attHref(x);
             const links=[
@@ -723,14 +722,13 @@ function editForm(i,a){
   };
   drawPhase();
   const artRows=a.map(x=>{
-    const v=d.art[x.key]; const fileForm=isFileForm(x.form);
+    const v=d.art[x.key];
     return el("tr",{},
       el("td",{text:x.artifact}),
       el("td",{},el("select",{"aria-label":`${x.artifact} status`,onchange:ev=>{v.status=ev.target.value;drawPhase();}},STATUSES.concat(STATUSES.includes(v.status)?[]:[v.status]).map(s=>el("option",{value:s,text:STATUS_LABEL[s]||s,selected:v.status===s})))),
       el("td",{},el("input",{type:"text",value:v.owner,"aria-label":`${x.artifact} owner`,style:"width:9rem",oninput:ev=>{v.owner=ev.target.value}})),
       el("td",{},el("div",{style:"display:grid;gap:3px"},
-        el("input",{type:"text",value:v.link,placeholder:"https:// (Drive, Figma, Asana, Jira…)","aria-label":`${x.artifact} link`,style:"width:min(100%,18rem)",oninput:ev=>{v.link=ev.target.value}}),
-        fileForm?el("span",{class:"note",text:`Data also kept in the repo: ${x.location}`}):null)));
+        el("input",{type:"text",value:v.link,placeholder:"https:// (Drive, Figma, Asana, Jira…)","aria-label":`${x.artifact} link`,style:"width:min(100%,18rem)",oninput:ev=>{v.link=ev.target.value}}))));
   });
   return el("div",{class:"form"},
     el("p",{class:"note",text:"Changes show on the page as soon as you save, and sync to the repo automatically within about 15 minutes. Moving phase with open gate items is allowed; they're noted in the decision log."}),
