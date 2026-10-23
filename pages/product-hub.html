@@ -163,6 +163,21 @@ textarea{width:100%;min-height:72px;resize:vertical;line-height:1.45}
 .tagrow{display:grid;grid-template-columns:minmax(0,8rem) 1fr auto;gap:8px;align-items:center;font-size:.85rem}
 .tagrow .bar{height:7px;border-radius:4px;background:var(--tag-ink);opacity:.55;min-width:4px}
 .fb-table{max-height:30rem;overflow:auto}
+.fb-filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.fb-filters input[type=search]{flex:1 1 14rem;min-width:0;max-width:22rem}
+.fb-selects{display:contents}
+.fb-selects select{flex:0 1 11rem;min-width:0}
+#fb-table tbody tr[data-id]{cursor:pointer}
+#fb-table tbody tr[data-id]:hover td{background:var(--sunk)}
+.idlink{all:unset;cursor:pointer;color:var(--accent);text-decoration:underline;white-space:nowrap}
+.idlink:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tagrow.btnrow{all:unset;display:grid;grid-template-columns:minmax(0,8rem) 1fr auto;gap:8px;align-items:center;font-size:.85rem;cursor:pointer;border-radius:4px;padding:2px 4px}
+.tagrow.btnrow:hover{background:var(--sunk)}
+.tagrow.btnrow[aria-pressed="true"]{background:var(--tag-bg);color:var(--tag-ink);font-weight:600}
+.tagrow.btnrow:focus-visible{outline:2px solid var(--accent)}
+.fb-quote{margin:0;font-family:var(--serif);font-size:1.15rem;line-height:1.45;border-left:3px solid var(--accent);padding-left:12px}
+.kv{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:6px 14px;margin:0;font-size:.92rem}
+.kv dt{color:var(--muted)} .kv dd{margin:0;overflow-wrap:anywhere}
 .fb-table th{position:sticky;top:0;background:var(--surface)}
 /* Artifact form (pop-out) */
 dialog.sheet{border:1px solid var(--line);border-radius:12px;padding:0;background:var(--surface);color:var(--ink);width:min(960px,calc(100vw - 32px));max-height:calc(100dvh - 32px)}
@@ -209,6 +224,7 @@ dialog.sheet::backdrop{background:rgba(10,16,24,.5)}
   </header>
 
   <div class="banner hidden" id="pending-banner" role="status"></div>
+  <dialog class="sheet" id="fb-dialog" aria-labelledby="fb-dialog-title" style="width:min(640px,calc(100vw - 32px))"></dialog>
 
   <div class="filters hidden" id="filters" role="group" aria-label="Filter initiatives"></div>
 
@@ -269,7 +285,11 @@ dialog.sheet::backdrop{background:rgba(10,16,24,.5)}
       <div class="panel"><h3>Top tags</h3><div id="tags" style="display:grid;gap:6px;margin-top:10px"></div></div>
       <div class="panel" style="display:grid;gap:10px">
         <h3>Entries</h3>
-        <input type="search" id="fb-search" placeholder="Search quotes, customers, tags" aria-label="Search feedback" style="width:min(100%,22rem)">
+        <div class="fb-filters">
+          <input type="search" id="fb-search" placeholder="Search quotes, customers, tags" aria-label="Search feedback">
+          <span class="fb-selects" id="fb-selects"></span>
+        </div>
+        <p class="note" id="fb-shown" style="margin:0"></p>
         <div class="scroll fb-table"><table id="fb-table">
           <thead><tr><th>Date</th><th>ID</th><th>Customer</th><th>Contact</th><th>Segment</th><th>Type</th><th>Feedback</th><th>Tags</th><th>Initiative</th><th>Interview</th></tr></thead>
           <tbody></tbody>
@@ -561,7 +581,7 @@ function renderDetail(){
       el("div",{class:"panel"},el("h3",{text:"Blockers"}),i.blockers.length?el("ul",{style:"margin:0;padding-left:1.1rem"},i.blockers.map(t=>el("li",{text:t}))):el("p",{class:"note",text:"No blockers."})),
       phasesCard(i,a),
       el("div",{class:"panel"},el("h3",{text:"Customer feedback"}),el("p",{class:"note",text:"Feedback Board entries linked to this initiative, and entries it cites as evidence."}),
-        table([{key:"date",label:"Date"},{key:"customer",label:"Customer"},{key:"type",label:"Type",cls:"cap"},{key:"text",label:"Feedback",cls:"wide"},{key:"cited",label:"Evidence for"},
+        table([{key:"date",label:"Date"},{key:"id",label:"ID",render:r=>r.id&&rows("feedback").some(f=>f.id===r.id)?el("button",{class:"idlink",type:"button",onclick:()=>openEntry(r.id)},r.id):document.createTextNode(r.id||"")},{key:"customer",label:"Customer"},{key:"type",label:"Type",cls:"cap"},{key:"text",label:"Feedback",cls:"wide"},{key:"cited",label:"Evidence for"},
           {key:"link",label:"Interview",render:r=>/^https:\/\//.test(r.link||"")?el("a",{href:r.link,target:"_blank",rel:"noopener",text:"Open"}):document.createTextNode("")}],fb,"No feedback linked yet. Pick this initiative on the Feedback Board.")),
       el("div",{class:"panel"},el("h3",{text:"Requirements"}),table([{key:"id",label:"ID"},{key:"title",label:"Title",cls:"wide"},{key:"priority",label:"Priority",pill:true},{key:"status",label:"Status",pill:true},{key:"evidence",label:"Evidence",num:true}],rows("requirements").filter(r=>r.slug===i.slug),"No requirements yet.")),
       el("div",{class:"panel"},el("h3",{text:"Hypotheses"}),table([{key:"id",label:"ID"},{key:"statement",label:"Statement",cls:"wide"},{key:"verdict",label:"Verdict",pill:true}],rows("hypotheses").filter(r=>r.slug===i.slug),"No hypotheses yet.")),
@@ -1581,17 +1601,82 @@ function renderFeedback(){
   $("#fb-note").textContent=`The Feedback Board is the source of truth. Showing ${fb.length} ${fb.length===1?"entry":"entries"} synced ${String(snap.exported_on||"—")}.`;
   const counts={}; for(const f of fb) for(const t of String(f.tags||"").split(", ").filter(Boolean)) counts[t]=(counts[t]||0)+1;
   const tags=Object.entries(counts).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,12), max=tags.length?tags[0][1]:1;
-  $("#tags").replaceChildren(...(tags.length?tags.map(([t,n])=>el("div",{class:"tagrow"},el("span",{text:t,style:"overflow:hidden;text-overflow:ellipsis;white-space:nowrap"}),el("div",{},el("div",{class:"bar",style:`width:${100*n/max}%`})),el("span",{text:n}))):[el("p",{class:"note",text:"No tags yet."})]));
-  const q=$("#fb-search").value.trim().toLowerCase();
-  const list=fb.filter(f=>!q||[f.id,f.quote,f.summary,f.customer,f.contact,f.tags,f.initiative].join(" ").toLowerCase().includes(q)).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
-  const nameOf=s=>(rows("initiatives").find(r=>r.slug===s)||{}).name||s;
-  $("#fb-table tbody").replaceChildren(...(list.length?list.map(f=>el("tr",{},
-    el("td",{text:f.date}),el("td",{text:f.id}),el("td",{text:f.customer}),el("td",{text:f.contact}),el("td",{text:SEG[f.segment]||f.segment}),
-    el("td",{class:"cap",text:f.type}),el("td",{class:"wide",text:f.quote?`“${f.quote}”`:f.summary}),el("td",{text:f.tags}),el("td",{text:f.initiative?nameOf(f.initiative):""}),
+  // Top tags double as a tag filter: click one to show only its entries, again to clear
+  $("#tags").replaceChildren(...(tags.length?tags.map(([t,n])=>el("button",{class:"tagrow btnrow",type:"button","aria-pressed":String(FBF.tag===t),title:FBF.tag===t?"Show all tags":`Show only ${t}`,
+      onclick:()=>{FBF.tag=FBF.tag===t?"":t;renderFeedback();}},
+    el("span",{text:t,style:"overflow:hidden;text-overflow:ellipsis;white-space:nowrap"}),el("div",{},el("div",{class:"bar",style:`width:${100*n/max}%`})),el("span",{text:n}))):[el("p",{class:"note",text:"No tags yet."})]));
+  renderFbSelects(fb);
+  const list=fbFiltered(fb);
+  const on=fbFilterOn();
+  $("#fb-shown").replaceChildren(...[
+    document.createTextNode(on?`Showing ${list.length} of ${fb.length} ${fb.length===1?"entry":"entries"}${FBF.tag?` tagged ${FBF.tag}`:""}. `:"Select an entry to open it."),
+    on?el("button",{class:"btn ghost small",type:"button",onclick:()=>{for(const k of Object.keys(FBF)) FBF[k]="";$("#fb-search").value="";renderFeedback();}},"Clear filters"):null].filter(Boolean));
+  $("#fb-table tbody").replaceChildren(...(list.length?list.map(f=>el("tr",{"data-id":f.id,onclick:ev=>{if(!ev.target.closest("a,button")) openEntry(f.id);}},
+    el("td",{text:f.date}),el("td",{},el("button",{class:"idlink",type:"button",onclick:()=>openEntry(f.id),"aria-label":`Open ${f.id}`},f.id)),el("td",{text:f.customer}),el("td",{text:f.contact}),el("td",{text:SEG[f.segment]||f.segment}),
+    el("td",{class:"cap",text:f.type}),el("td",{class:"wide",text:f.quote?`“${f.quote}”`:f.summary}),el("td",{text:f.tags}),el("td",{text:f.initiative?fbInitName(f.initiative):""}),
     el("td",{},/^https:\/\//.test(f.link||"")?el("a",{href:f.link,target:"_blank",rel:"noopener",text:"Open"}):""))):
-    [el("tr",{},el("td",{colspan:"10",class:"note",text:fb.length?"No entries match.":"No feedback synced yet."}))]));
+    [el("tr",{},el("td",{colspan:"10",class:"note",text:fb.length?"No entries match these filters.":"No feedback synced yet."}))]));
 }
-$("#fb-search").addEventListener("input",renderFeedback);
+/* ---------- feedback filters and entry pop-out ---------- */
+const FBF={q:"",segment:"",type:"",initiative:"",tag:""};
+const fbFilterOn=()=>Object.values(FBF).some(Boolean);
+const fbInitName=s=>(rows("initiatives").find(r=>r.slug===s)||{}).name||s;
+const fbTags=f=>String(f.tags||"").split(", ").filter(Boolean);
+function fbFiltered(fb){
+  const q=FBF.q.toLowerCase();
+  return fb.filter(f=>(!FBF.segment||f.segment===FBF.segment)&&(!FBF.type||f.type===FBF.type)
+      &&(!FBF.initiative||(FBF.initiative==="__none"?!f.initiative:f.initiative===FBF.initiative))&&(!FBF.tag||fbTags(f).includes(FBF.tag))
+      &&(!q||[f.id,f.quote,f.summary,f.customer,f.contact,f.tags,f.initiative,fbInitName(f.initiative)].join(" ").toLowerCase().includes(q)))
+    .sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+}
+function renderFbSelects(fb){
+  const box=$("#fb-selects"); if(box.contains(document.activeElement)) return;
+  const vals=key=>[...new Set(fb.map(f=>f[key]).filter(Boolean))].sort();
+  const sel=(key,all,list,label)=>el("select",{"aria-label":`Filter feedback by ${label}`,onchange:ev=>{FBF[key]=ev.target.value;renderFeedback();}},
+    el("option",{value:"",text:all,selected:!FBF[key]?true:null}),
+    list.map(([v,t])=>el("option",{value:v,text:t,selected:FBF[key]===v?true:null})));
+  const tagList=[...new Set(fb.flatMap(fbTags))].sort();
+  box.replaceChildren(
+    sel("segment","All segments",vals("segment").map(v=>[v,SEG[v]||v]),"segment"),
+    sel("type","All types",vals("type").map(v=>[v,v.replace(/-/g," ").replace(/^./,c=>c.toUpperCase())]),"type"),
+    sel("initiative","All initiatives",vals("initiative").map(v=>[v,fbInitName(v)]).concat([["__none","No initiative"]]),"initiative"),
+    sel("tag","All tags",tagList.map(t=>[t,t]),"tag"));
+}
+$("#fb-search").addEventListener("input",ev=>{FBF.q=ev.target.value.trim();renderFeedback();});
+// Read-only view of one entry; the Feedback Board stays the place to edit it
+function openEntry(id){
+  const fb=rows("feedback"), f=fb.find(x=>x.id===id); if(!f) return;
+  const dlg=$("#fb-dialog");
+  const cites=rows("evidence").filter(x=>x.id===id&&x.slug);
+  const reqs=String(f.requirements||"").split(", ").filter(Boolean);
+  const list=fbFiltered(fb), k=list.findIndex(x=>x.id===id);
+  const nav=(d)=>{const n=list[k+d];if(n) openEntry(n.id);};
+  const row=(label,v)=>v?[el("dt",{text:label}),el("dd",{},v)]:null;
+  dlg.replaceChildren(el("div",{class:"sheet-in"},
+    el("div",{class:"sheet-head"},
+      el("div",{style:"display:grid;gap:4px;min-width:0"},
+        el("h2",{id:"fb-dialog-title",text:f.customer||"Unknown customer"}),
+        el("span",{class:"note"},[f.contact,SEG[f.segment]||f.segment,f.date].filter(Boolean).join(" · "))),
+      el("div",{class:"pills"},f.type?el("span",{class:"pill cap",text:f.type.replace(/-/g," ")}):null,f.sentiment?pill(f.sentiment,f.sentiment==="negative"?"bad":f.sentiment==="positive"?"ok":"dim"):null)),
+    el("div",{class:"sheet-body",style:"display:grid;gap:14px;padding-top:14px"},
+      f.quote?el("blockquote",{class:"fb-quote"},`“${f.quote}”`):el("p",{class:"note",style:"margin:0",text:"No direct quote recorded for this entry."}),
+      f.summary?el("p",{style:"margin:0"},el("b",{text:"Summary: "}),f.summary):null,
+      el("dl",{class:"kv"},
+        row("ID",el("span",{style:"user-select:all",text:f.id})),
+        row("Source",f.source),
+        row("Tags",fbTags(f).length?el("span",{class:"chips"},fbTags(f).map(t=>el("button",{class:"chipx",type:"button",style:"border:0;cursor:pointer",title:`Show entries tagged ${t}`,onclick:()=>{FBF.tag=t;dlg.close();renderFeedback();document.getElementById("feedback").scrollIntoView({behavior:"smooth"});}},t))):null),
+        row("Initiative",f.initiative?el("button",{class:"idlink",type:"button",onclick:()=>{dlg.close();if(base(f.initiative)) pick(f.initiative,true);}},fbInitName(f.initiative)):null),
+        row("Requirements",reqs.join(", ")),
+        row("Cited as evidence",cites.length?cites.map(c=>`${fbInitName(c.slug)}${[c.hypotheses,c.requirements].filter(Boolean).length?` (${[c.hypotheses,c.requirements].filter(Boolean).join("; ")})`:""}`).join(", "):null),
+        row("Interview",/^https:\/\//.test(f.link||"")?el("a",{href:f.link,target:"_blank",rel:"noopener",text:"Open the recording or notes"}):null))),
+    el("div",{class:"sheet-foot"},
+      el("button",{class:"btn ghost",type:"button",disabled:k>0?null:true,onclick:()=>nav(-1)},"‹ Newer"),
+      el("button",{class:"btn ghost",type:"button",disabled:k>=0&&k<list.length-1?null:true,onclick:()=>nav(1)},"Older ›"),
+      el("span",{class:"note",text:k>=0?`${k+1} of ${list.length}`:""}),
+      el("a",{href:"https://claude.ai/artifact/MVCedVjgWJ9WyywSWuRstp",target:"_blank",rel:"noopener",style:"margin-left:auto"},"Edit on the Feedback Board"),
+      el("button",{class:"btn",type:"button",onclick:()=>dlg.close()},"Close"))));
+  if(!dlg.open) dlg.showModal();
+}
 $("#archived-toggle").addEventListener("click",()=>{showArchived=!showArchived;render();});
 
 /* ---------- new initiative ---------- */
