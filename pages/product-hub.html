@@ -46,8 +46,15 @@ a{color:var(--accent)}
 .hidden{display:none!important}
 
 /* Pipeline */
-.pipe{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,11rem),1fr));gap:10px}
-.col{border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;gap:8px;align-content:start;background:var(--sunk);min-width:0}
+.pipe{display:grid;border:1px solid var(--line);border-radius:10px;background:var(--surface);overflow:hidden}
+.prow{display:grid;grid-template-columns:minmax(0,20rem) minmax(0,1fr);gap:8px 16px;align-items:center;padding:12px 14px;border-top:1px solid var(--line);border-left:3px solid transparent;min-width:0}
+.prow:first-child{border-top:0}
+.prow.current{border-left-color:var(--accent);background:var(--sunk)}
+.prow.empty{padding-block:8px}
+.prow-head{display:grid;gap:2px;min-width:0}
+.prow-chips{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
+.prow-chips .chip{min-width:min(100%,13rem)}
+@media (max-width:40rem){.prow{grid-template-columns:1fr}}
 .col-head{display:flex;gap:6px;align-items:baseline}
 .col-num{color:var(--muted);font-size:.8rem}
 .col-name{font-weight:700}
@@ -415,13 +422,19 @@ function renderBanner(){
   b.replaceChildren(el("b",{text:`${slugs.length} initiative${slugs.length===1?" has":"s have"} unsynced edits`})," (",slugs.map(s=>init(s).name).join(", "),"). They show here now and are written into the repo automatically, about 5 minutes after the last change and within about 15 minutes. Click ",el("b",{text:"Sync now"})," at the top to sync sooner.");
 }
 function renderPipe(inits){
-  $("#pipe").replaceChildren(...PHASES.map((p,i)=>el("div",{class:"col",id:"phase-"+p},
-    el("div",{class:"col-head"},el("span",{class:"col-num",text:i+1}),el("span",{class:"col-name",text:PHASE_NAME[p]})),
-    el("p",{class:"col-gate",text:"Gate: "+GATE_TEXT[p]}),
-    ...inits.filter(x=>x.phase===p).map(x=>el("button",{class:"chip",type:"button","aria-current":String(x.slug===picked),onclick:()=>pick(x.slug,true)},
-      el("span",{class:"chip-name",text:x.name}),
-      el("span",{class:"chip-meta"},el("span",{class:"dot "+(EDITS[x.slug]?"pending":isReady(x)?"ok":"warn")}),[x.priority,x.owner,EDITS[x.slug]?"Unsynced edits":isReady(x)?"Ready":"Not ready"].filter(Boolean).join(" · "))))
-  )));
+  // One row per phase, top to bottom: name and gate on the left, its initiatives wrapping on the right
+  const cur=(init(picked)||{}).phase;
+  $("#pipe").replaceChildren(...PHASES.map((p,i)=>{
+    const here=inits.filter(x=>x.phase===p);
+    return el("div",{class:"prow"+(here.length?"":" empty")+(p===cur?" current":""),id:"phase-"+p},
+      el("div",{class:"prow-head"},
+        el("div",{class:"col-head"},el("span",{class:"col-num",text:i+1}),el("span",{class:"col-name",text:PHASE_NAME[p]}),here.length?el("span",{class:"col-num",text:`· ${here.length}`}):null),
+        el("p",{class:"col-gate",text:"Gate: "+GATE_TEXT[p]})),
+      el("div",{class:"prow-chips"},here.length?here.map(x=>el("button",{class:"chip",type:"button","aria-current":String(x.slug===picked),onclick:()=>pick(x.slug,true)},
+        el("span",{class:"chip-name",text:x.name}),
+        el("span",{class:"chip-meta"},el("span",{class:"dot "+(EDITS[x.slug]?"pending":isReady(x)?"ok":"warn")}),[x.priority,x.owner,EDITS[x.slug]?"Unsynced edits":isReady(x)?"Ready":"Not ready"].filter(Boolean).join(" · "))))
+        :el("span",{class:"note",text:"None"})));
+  }));
 }
 function renderAttn(inits){
   const list=inits.filter(i=>!isReady(i)||i.blockers.length);
