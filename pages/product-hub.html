@@ -350,8 +350,12 @@ function render(){
   const inits=allInits();
   if(!loaded){$("#summary").textContent="Loading…";return;}
   if(!inits.length){
-    $("#summary").textContent=db?"No initiatives yet. Ask Claude to sync the hub.":"Open this page in Claude to load the hub.";
+    $("#summary").textContent=db?(canEdit?"No initiatives yet. Click New initiative to add the first one.":"No initiatives yet."):"Open this page in Claude to load the hub.";
     for(const id of ["#pipe","#attn"]) $(id).replaceChildren(el("div",{class:"empty",text:"Nothing to show yet."}));
+    $("#roadmap-table tbody").replaceChildren(el("tr",{},el("td",{colspan:"9",class:"note",text:"No initiatives yet."})));
+    $("#archived-toggle").classList.add("hidden");
+    $("#detail-panel").replaceChildren(el("div",{class:"empty",text:"New initiatives show up here once you create them."}));
+    renderBanner(); renderSync(); renderFeedback();
     return;
   }
   const active=inits.filter(i=>!i.archived&&!i.deleting);

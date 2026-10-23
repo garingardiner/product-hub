@@ -1,9 +1,0 @@
-metrics: []
-#  - name: ""
-#    type: leading          # leading | lagging
-#    target: ""
-#    stretch: ""
-#    method: ""             # tool + query/definition + window
-#    review_date: YYYY-MM-DD
-#    actual: null
-#    verdict: null          # hit | missed | inconclusive

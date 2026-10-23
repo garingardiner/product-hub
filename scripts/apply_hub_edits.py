@@ -210,6 +210,9 @@ def main():
     applied, to_read, held = [], [], []
     for p in sorted((src / "edits").glob("*.json")):
         d = json.loads(p.read_text(encoding="utf-8"))
+        # ArtifactData out_dir saves the bare document body; older test files wrapped it as {id, version, data}
+        if not isinstance(d.get("data"), dict):
+            d = {"id": p.stem, "version": None, "data": d}
         data = d.get("data") or {}
         if skip_deletes and data.get("delete"):
             held.append(d.get("id") or p.stem)
