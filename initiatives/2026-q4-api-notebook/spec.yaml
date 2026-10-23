@@ -1,0 +1,13 @@
+# Project spec sections, filled in on the Product Hub's form. Requirements live in requirements.yaml.
+# project-spec.md is generated from both by scripts/spec_doc.py; edit this file or the form, not the doc.
+problem: There is no way to manipulate an nTop notebook from code (python) (in a running session or headlessly). To add a block, wire up an output, or change a value inside the notebook, a human needs to do it with a mouse. There are three reasons these gaps need to be prioritized.
+evidence: []
+goals: []
+non_goals: []
+stories: []
+open_questions: []
+no_open_questions: false
+support:
+  docs: ''
+  edge_cases: ''
+  tickets: ''

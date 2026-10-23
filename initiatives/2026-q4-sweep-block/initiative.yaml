@@ -20,7 +20,7 @@ decisions:
 artifacts:
   concept: {form: claude-doc, link: "", status: not-started, owner: ""}
   feedback: {form: data, path: feedback.yaml, status: not-started, owner: ""}
-  project_spec: {form: claude-doc, link: "", status: not-started, owner: ""}
+  project_spec: {form: claude-doc, link: "https://docs.google.com/document/d/15y_FXomm9PEPNCLvlGpHoaVHcrC__LlEn67jK28eAdQ/edit?usp=sharing", status: approved, owner: ""}
   ux_spec: {form: figma, link: "", status: not-started, owner: ""}
   success_metrics: {form: data, path: metrics.yaml, status: not-started, owner: ""}
   engineering_scope: {form: data, path: scope.yaml, status: approved, owner: ""}
