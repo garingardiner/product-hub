@@ -76,7 +76,8 @@ Allowed values for `form` in a manifest:
 
 `not-started` → `draft` → `in-review` → `approved` (feedback also uses `synthesized`). Use `superseded` for replaced artifacts.
 `n/a` marks an artifact this initiative doesn't need (e.g. no UX spec for a backend change): it needs no link and counts as done
-for its phase's gate. To skip a whole phase instead, use `skip_phases`.
+for its phase's gate. To skip a whole phase instead, use `skip_phases`. The Product Hub's editor offers not-started,
+draft, in-review, approved and n/a; `synthesized` and `superseded` stay valid in the YAML but aren't offered there.
 
 ## How to do common tasks
 

@@ -248,7 +248,8 @@ const PHASES=["discovery","feedback","spec","engineering","gtm"];
 const PHASE_NAME={discovery:"Discovery",feedback:"Feedback",spec:"Spec",engineering:"Engineering",gtm:"GTM",done:"Done",parked:"Parked"};
 const GATE_TEXT={discovery:"Concept approved",feedback:"Feedback synthesized, sizing recorded",spec:"Project spec, UX spec and success metrics approved",engineering:"Scope approved, every P0 covered, QA approach set",gtm:"Feature/Benefits approved, then post-launch review"};
 const GATES={discovery:{concept:["approved"]},feedback:{feedback:["synthesized","approved"]},spec:{project_spec:["approved"],ux_spec:["approved"],success_metrics:["approved"]},engineering:{engineering_scope:["approved"]},gtm:{feature_benefits:["approved"]}};
-const STATUSES=["not-started","draft","in-review","approved","synthesized","superseded","n/a"];
+// Offered in the editor; the repo also accepts synthesized and superseded, which still show if already set
+const STATUSES=["not-started","draft","in-review","approved","n/a"];
 const STATUS_LABEL={"n/a":"N/A (not needed)"};
 const ART_LABEL={concept:"Concept",feedback:"Feedback",project_spec:"Project spec",ux_spec:"UX spec",success_metrics:"Success metrics",engineering_scope:"Engineering scope",feature_benefits:"Feature/Benefits"};
 const SEG={aerospace:"Aerospace",automotive:"Automotive",power:"Power"};
@@ -719,7 +720,7 @@ function editForm(i,a){
     const v=d.art[x.key]; const fileForm=["repo-md","data"].includes(x.form);
     return el("tr",{},
       el("td",{text:x.artifact}),
-      el("td",{},el("select",{"aria-label":`${x.artifact} status`,onchange:ev=>{v.status=ev.target.value;drawPhase();}},STATUSES.map(s=>el("option",{value:s,text:STATUS_LABEL[s]||s,selected:v.status===s})))),
+      el("td",{},el("select",{"aria-label":`${x.artifact} status`,onchange:ev=>{v.status=ev.target.value;drawPhase();}},STATUSES.concat(STATUSES.includes(v.status)?[]:[v.status]).map(s=>el("option",{value:s,text:STATUS_LABEL[s]||s,selected:v.status===s})))),
       el("td",{},el("input",{type:"text",value:v.owner,"aria-label":`${x.artifact} owner`,style:"width:9rem",oninput:ev=>{v.owner=ev.target.value}})),
       el("td",{},fileForm?el("span",{class:"note",text:`${x.location} (in repo)`}):el("input",{type:"text",value:v.link,placeholder:"https://…","aria-label":`${x.artifact} link`,style:"width:min(100%,18rem)",oninput:ev=>{v.link=ev.target.value}})));
   });
