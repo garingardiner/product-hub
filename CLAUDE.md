@@ -16,6 +16,8 @@ The repo always knows **where each artifact is, what state it's in, and what it 
 4. **Requirements are traceable.** Every requirement has a stable ID (`R-001`). Feedback links to requirements,
    scope items reference requirement IDs, and Feature/Benefits entries reference the requirements they ship.
 5. **Gates before moving phases.** Never advance `phase` until the gate below passes. If it doesn't, list what's missing.
+   Not every initiative needs every phase: phases listed in its `skip_phases` are not needed, have no gate, and are
+   skipped over when it advances (it moves to the next phase it still needs). Marking a phase not needed is logged as a decision.
 6. **Run `python scripts/status.py`** after changing any manifest. It validates manifests and regenerates `ROADMAP.md`.
 7. **Never invent customer evidence.** Feedback must come from a real source (interview, ticket, call, survey) and be
    cited by its library ID (`F-YYMMDD-XXXX`). If evidence is thin, say so in the artifact.

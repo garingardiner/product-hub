@@ -128,6 +128,8 @@ textarea{width:100%;min-height:72px;resize:vertical;line-height:1.45}
 .phase-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr));gap:10px}
 .phase{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;gap:8px;align-content:start;min-width:0;background:var(--sunk)}
 .phase.current{border-color:var(--accent);background:var(--surface)}
+.phase.skipped{border-style:dashed}
+.phase.skipped .items{opacity:.6}
 .phase-head{display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap}
 .items{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .items li{display:grid;gap:2px;min-width:0}
@@ -327,14 +329,18 @@ function init(slug){
     name:p.name??b.name, problem:p.problem??b.problem, priority:p.priority??b.priority, owner:p.owner??b.owner,
     team:p.team??b.team, size:p.size??(b.size||""), target:p.target_release??b.target, phase:p.phase??b.phase,
     blockers:p.blockers??(b.blockers_list||[]),
-    archived:p.archived??!!b.archived, deleting:!!(EDITS[slug]||{}).delete};
+    archived:p.archived??!!b.archived, deleting:!!(EDITS[slug]||{}).delete,
+    skip:p.skip_phases??(b.skip_phases||[])};
 }
+// The next phase this initiative still needs, skipping phases marked not needed
+const nextOf=(phase,skip)=>PHASES.slice(PHASES.indexOf(phase)+1).find(p=>!skip.includes(p));
 function arts(slug){
   const ch=(EDITS[slug]||{}).artifacts||{};
   return baseArts(slug).map(a=>{const c=ch[a.key]||{};return {...a,status:c.status??a.status,owner:c.owner??a.owner,location:c.link??a.location,pending:!!Object.keys(c).length};});
 }
 function gaps(slug,phase,artList){
   const b=base(slug), req=GATES[phase]||{}, out=[];
+  if(init(slug).skip.includes(phase)) return out;   // not needed: no gate to pass
   for(const [k,ok] of Object.entries(req)){const a=artList.find(x=>x.key===k);const st=a?a.status:"missing";if(!ok.includes(st)) out.push(`${ART_LABEL[k]||k} is ${st}`);}
   if(phase===b.phase) out.push(...(b.gate_data||[])); else out.push("Data checks for this phase run when the hub syncs");
   return out;
@@ -434,7 +440,7 @@ function renderDetail(){
   const box=$("#detail-panel");
   const i=init(picked); if(!i){box.replaceChildren(el("div",{class:"empty",text:"Select an initiative."}));return;}
   const e=EDITS[i.slug], a=arts(i.slug), g=gaps(i.slug,i.phase,a);
-  const b=base(i.slug), nxt=PHASES[PHASES.indexOf(i.phase)+1];
+  const b=base(i.slug), nxt=nextOf(i.phase,i.skip);
   const head=el("div",{class:"detail-head"},
     el("div",{class:"detail-title"},
       el("h2",{text:i.name}),
@@ -559,10 +565,13 @@ function phasesCard(i,a){
     el("div",{class:"phase-grid"},PHASES.map(p=>{
       const pa=a.filter(x=>PHASE_ARTS[p].includes(x.key)), pl=list.filter(x=>x.phase===p);
       const open=addingFor&&addingFor.slug===i.slug&&addingFor.phase===p;
-      return el("div",{class:"phase"+(p===i.phase?" current":""),id:"phase-card-"+p},
+      const skipped=i.skip.includes(p);
+      return el("div",{class:"phase"+(p===i.phase?" current":"")+(skipped?" skipped":""),id:"phase-card-"+p},
         el("div",{class:"phase-head"},
-          el("span",{},el("b",{text:PHASE_NAME[p]}),p===i.phase?[" ",pill("current","")]:null),
+          el("span",{},el("b",{text:PHASE_NAME[p]}),p===i.phase?[" ",pill("current","")]:null,skipped?[" ",pill("Not needed","dim")]:null),
           canEdit&&!open?el("button",{class:"btn ghost small",type:"button",onclick:()=>{addingFor={slug:i.slug,phase:p};renderDetail();}},"Add link or file"):null),
+        skipped?el("p",{class:"note",text:"Its gate doesn't apply; the initiative moves straight past this phase."}):null,
+        canEdit?el("div",{},el("button",{class:"btn ghost small",type:"button",onclick:()=>toggleSkip(i,p)},skipped?"Needed after all":"Mark not needed")):null,
         el("ul",{class:"items"},
           pa.map(x=>el("li",{class:x.pending?"pend-row":""},
             el("div",{class:"row1"},el("span",{class:"t",text:x.artifact}),pill(x.status)),
@@ -588,6 +597,16 @@ function phasesCard(i,a){
         !pa.length&&!pl.length?el("p",{class:"note",text:"Nothing here yet."}):null,
         open?attachForm(i,p,a):null);
     })));
+}
+async function toggleSkip(i,p){
+  const b=base(i.slug), s=new Set(i.skip);
+  s.has(p)?s.delete(p):s.add(p);
+  const arr=PHASES.filter(x=>s.has(x)), baseArr=b.skip_phases||[];
+  try{await putEdit(i.slug,cur=>{
+    if(JSON.stringify(arr)===JSON.stringify(baseArr)) delete cur.patch.skip_phases; else cur.patch.skip_phases=arr;
+    // a pending phase move may no longer be valid once the skips change; drop it rather than sync a bad move
+    if(cur.patch.phase&&cur.patch.phase!==nextOf(b.phase,arr)&&PHASES.indexOf(cur.patch.phase)>PHASES.indexOf(b.phase)) delete cur.patch.phase;
+  });}catch(_){}
 }
 function newAttId(){
   const d=new Date(),p=n=>String(n).padStart(2,"0");
@@ -674,7 +693,7 @@ function editForm(i,a){
   const d=draft, b=base(i.slug);
   const inp=(key,label,attrs={})=>el("label",{class:key==="name"?"wide-field":null},label,el("input",{type:"text",value:d[key]||"",oninput:ev=>{d[key]=ev.target.value},...attrs}));
   const phaseOpts=()=>{
-    const cur=b.phase, ci=PHASES.indexOf(cur), nx=PHASES[ci+1];
+    const cur=b.phase, ci=PHASES.indexOf(cur), nx=nextOf(cur,i.skip);
     const opts=PHASES.slice(0,ci+1);
     const artList=a.map(x=>({...x,status:d.art[x.key].status}));
     const nxGaps=nx?gaps(i.slug,cur,artList):["Last phase"];

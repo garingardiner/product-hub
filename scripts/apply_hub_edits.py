@@ -100,6 +100,20 @@ def apply_one(slug, data, yaml):
             doc[k] = v
         elif k == "blockers":
             doc["blockers"] = [str(b).strip() for b in v if str(b).strip()]
+        elif k == "skip_phases":
+            new = [p for p in status.PHASES[:5] if p in (v or [])]
+            old = list(doc.get("skip_phases") or [])
+            if new != old:
+                if new:
+                    doc["skip_phases"] = new
+                else:
+                    doc.pop("skip_phases", None)
+                added, back = [p for p in new if p not in old], [p for p in old if p not in new]
+                note = "; ".join(filter(None, [f"Marked {', '.join(added)} not needed" if added else "",
+                                               f"{', '.join(back)} needed again" if back else ""]))
+                doc.setdefault("decisions", []).append(flow({
+                    "date": date.today().isoformat(), "decision": note, "by": "Product Hub page"}))
+                msgs.append(f"{slug}: {note}")
         elif k == "archived" and bool(v) != bool(doc.get("archived")):
             if v:
                 doc["archived"] = True
@@ -180,14 +194,17 @@ def apply_one(slug, data, yaml):
             ti, ci = status.PHASES.index(target), status.PHASES.index(cur)
             if ti < ci:
                 note = f"Phase moved back from {cur} to {target}"
-            elif ti == ci + 1:
+            elif target == status.next_phase(doc):
                 _, errors, gate = status.check(path.parent)
                 if gate or errors:
                     msgs.append(f"{slug}: not moved to {target}; gate open: {'; '.join(gate + errors)}")
                     target = None
-                note = f"Advanced from {cur} to {target} (gate passed)"
+                skipped = [p for p in status.PHASES[ci + 1:ti]]
+                note = (f"Advanced from {cur} to {target}" + (f", skipping {', '.join(skipped)} (not needed)" if skipped else "")
+                        + (" (gate not needed)" if cur in (doc.get("skip_phases") or []) else " (gate passed)"))
             else:
-                msgs.append(f"{slug}: can't skip from {cur} to {target}")
+                msgs.append(f"{slug}: can't move from {cur} to {target}; the next phase it needs is "
+                            f"{status.next_phase(doc) or 'none'}")
                 target = None
             if target:
                 doc["phase"] = target

@@ -12,6 +12,7 @@ owner: string                # PM
 team: Build | Analyze | Orchestrate
 size: Small | Medium | Large   # rough project size
 archived: true               # optional; hidden from the hub's pipeline and lists until restored
+skip_phases: [feedback, spec] # optional; phases this initiative doesn't need: no gate, skipped when advancing
 collaborators: { role: [names] }
 target_release: string       # optional month, YYYY-MM (e.g. 2027-01)
 blockers: [string]

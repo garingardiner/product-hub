@@ -65,12 +65,26 @@ def check(folder):
                 errors.append(f"{key}: status '{a['status']}' but no path/link")
             elif a.get("form") in ("repo-md", "data") and not (folder / loc).exists():
                 errors.append(f"{key}: file '{loc}' not found")
-    for key, ok in GATES.get(m.get("phase"), {}).items():
-        st = (m.get("artifacts") or {}).get(key, {}).get("status", "missing")
-        if st not in ok:
-            gate.append(f"{key} is {st}")
-    gate += data_checks(folder, m.get("phase"))
+    skip = m.get("skip_phases") or []
+    for s in skip:
+        if s not in GATES:
+            errors.append(f"skip_phases: '{s}' is not a phase")
+    # A phase marked not needed has no gate: the initiative can move straight on from it
+    if m.get("phase") not in skip:
+        for key, ok in GATES.get(m.get("phase"), {}).items():
+            st = (m.get("artifacts") or {}).get(key, {}).get("status", "missing")
+            if st not in ok:
+                gate.append(f"{key} is {st}")
+        gate += data_checks(folder, m.get("phase"))
     return m, errors, gate
+
+def next_phase(m):
+    """The next phase this initiative still needs, skipping phases marked not needed ('' if none)."""
+    order = list(GATES)  # discovery .. gtm
+    phase, skip = m.get("phase"), set(m.get("skip_phases") or [])
+    if phase not in order:
+        return ""
+    return next((p for p in order[order.index(phase) + 1:] if p not in skip), "")
 
 def main():
     rows, failed = [], False

@@ -46,13 +46,14 @@ def main():
         reqs = status.load(f / "requirements.yaml").get("requirements") or []
         fb = status.load(f / "feedback.yaml")
         hyps = fb.get("hypotheses") or []
-        data_gaps = status.data_checks(f, phase)
-        nxt = status.PHASES[status.PHASES.index(phase) + 1] if phase in status.PHASES[:5] else ""
+        skip = list(m.get("skip_phases") or [])
+        data_gaps = [] if phase in skip else status.data_checks(f, phase)
+        nxt = status.next_phase(m)
         rows["initiatives"].append({
             "slug": slug, "name": m.get("name", slug), "priority": m.get("priority", ""), "phase": phase,
             "phase_index": status.PHASES.index(phase) + 1 if phase in status.PHASES else None,
             "owner": text(m.get("owner")), "team": text(m.get("team")), "size": text(m.get("size")),
-            "archived": bool(m.get("archived")),
+            "archived": bool(m.get("archived")), "skip_phases": skip,
             "target": text(m.get("target_release")),
             "problem": text(m.get("problem")),
             "ready": "n/a" if phase in ("done", "parked") else ("Ready" if not gate else "Not ready"),
