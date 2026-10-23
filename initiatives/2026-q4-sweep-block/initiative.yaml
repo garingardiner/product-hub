@@ -22,5 +22,5 @@ artifacts:
   project_spec: {form: claude-doc, link: "", status: not-started, owner: ""}
   ux_spec: {form: figma, link: "", status: not-started, owner: ""}
   success_metrics: {form: data, path: metrics.yaml, status: not-started, owner: ""}
-  engineering_scope: {form: data, path: scope.yaml, status: not-started, owner: ""}
+  engineering_scope: {form: data, path: scope.yaml, status: approved, owner: ""}
   feature_benefits: {form: claude-artifact, link: "", status: not-started, owner: ""}

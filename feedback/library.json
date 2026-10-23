@@ -1,8 +1,28 @@
 {
-  "exported_at": "2026-10-23T00:33:02Z",
+  "exported_at": "2026-10-23T01:35:02Z",
   "source": "Feedback Board (synced by Claude)",
-  "count": 3,
+  "count": 4,
   "entries": [
+    {
+      "id": "F-261022-GGGM",
+      "quote": "they needed Loft blocks for the next Apple car",
+      "summary": "The customer indicates they need Loft blocks for their next car program.",
+      "type": "feature-request",
+      "sentiment": "neutral",
+      "tags": [
+        "loft-block",
+        "implicit-geometry"
+      ],
+      "source": "interview",
+      "customer": "Apple",
+      "contact": "",
+      "link": "",
+      "segment": "automotive",
+      "date": "2026-10-22",
+      "initiative": "",
+      "requirements": [],
+      "createdAt": "2026-10-23T00:45:46.331Z"
+    },
     {
       "id": "F-261022-YDQF",
       "quote": "They want to use adjoint solvers and derivatives of implicit geometry to minimize drag of an airplane across 100s or 1000s of input parameters.",
