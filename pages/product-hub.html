@@ -45,6 +45,11 @@ a{color:var(--accent)}
 .empty{padding:28px 18px;text-align:center;color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:8px}
 .hidden{display:none!important}
 
+/* Filters */
+.filters{display:flex;gap:8px 14px;align-items:end;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+.filters label{display:grid;gap:3px;font-size:.78rem;font-weight:600;color:var(--muted)}
+.filters select{min-width:11rem;color:var(--ink)}
+
 /* Pipeline */
 .pipe{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,11rem),1fr));gap:10px}
 .col{border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;gap:8px;align-content:start;background:var(--sunk);min-width:0}
@@ -204,6 +209,8 @@ dialog.sheet::backdrop{background:rgba(10,16,24,.5)}
   </header>
 
   <div class="banner hidden" id="pending-banner" role="status"></div>
+
+  <div class="filters hidden" id="filters" role="group" aria-label="Filter initiatives"></div>
 
   <section class="panel new-panel hidden" id="new-panel" aria-labelledby="new-title">
     <h2 id="new-title">New initiative</h2>
@@ -392,9 +399,48 @@ let showArchived=false,confirmDelete=false;
 const isReady=i=>gaps(i.slug,i.phase,arts(i.slug)).length===0;
 
 /* ---------- render ---------- */
+/* ---------- team / owner filter ---------- */
+// Applies to the pipeline, Initiatives and What's next. Remembered per viewer in this browser only.
+const FILTER={team:"",owner:""};
+try{Object.assign(FILTER,JSON.parse(localStorage.getItem("hub-filter")||"{}"));}catch(_){}
+const saveFilter=()=>{try{localStorage.setItem("hub-filter",JSON.stringify(FILTER));}catch(_){}};
+const passes=i=>(!FILTER.team||i.team===FILTER.team)&&(!FILTER.owner||i.owner===FILTER.owner);
+// Changing a filter moves the open initiative to one that matches; picking from the detail's own list still works
+function setFilter(key,v){
+  FILTER[key]=v; saveFilter();
+  const cur=picked&&init(picked);
+  if(cur&&!passes(cur)&&!draft) picked=null;
+  render();
+}
+function renderFilters(all){
+  const box=$("#filters");
+  box.classList.toggle("hidden",!all.length);
+  if(!all.length) return;
+  // Offer the standard lists plus any other value an initiative already uses
+  const opts=(list,key)=>[...new Set(list.concat(all.map(i=>i[key]).filter(Boolean)))];
+  const sel=(label,key,list,none)=>el("label",{},label,el("select",{"aria-label":`Filter by ${label.toLowerCase()}`,onchange:ev=>setFilter(key,ev.target.value)},
+    el("option",{value:"",text:none,selected:!FILTER[key]?true:null}),
+    opts(list,key).map(v=>el("option",{value:v,text:v,selected:FILTER[key]===v?true:null}))));
+  const on=FILTER.team||FILTER.owner, shown=all.filter(passes).length;
+  box.replaceChildren(...[
+    sel("Team","team",TEAMS,"All teams"),
+    sel("Owner","owner",OWNERS,"All owners"),
+    on?el("span",{class:"note",text:`Showing ${shown} of ${all.length} initiative${all.length===1?"":"s"}`}):null,
+    on?el("button",{class:"btn ghost small",type:"button",onclick:()=>{FILTER.team="";setFilter("owner","");}},"Clear filters"):null].filter(Boolean));
+}
 function render(){
-  const inits=allInits();
+  const all=allInits(), inits=all.filter(passes);
   if(!loaded){$("#summary").textContent="Loading…";return;}
+  renderFilters(all);
+  if(all.length&&!inits.length){
+    $("#summary").textContent="No initiatives match these filters.";
+    for(const id of ["#pipe","#attn"]) $(id).replaceChildren(el("div",{class:"empty",text:"No initiatives match the team and owner filters."}));
+    $("#roadmap-table tbody").replaceChildren(el("tr",{},el("td",{colspan:"9",class:"note",text:"No initiatives match these filters."})));
+    $("#archived-toggle").classList.add("hidden");
+    $("#detail-panel").replaceChildren(el("div",{class:"empty",text:"Change or clear the filters to open an initiative."}));
+    renderBanner(); renderSync(); renderFeedback();
+    return;
+  }
   if(!inits.length){
     $("#summary").textContent=db?(canEdit?"No initiatives yet. Click New initiative to add the first one.":"No initiatives yet."):"Open this page in Claude to load the hub.";
     for(const id of ["#pipe","#attn"]) $(id).replaceChildren(el("div",{class:"empty",text:"Nothing to show yet."}));
@@ -407,7 +453,7 @@ function render(){
   const active=inits.filter(i=>!i.archived&&!i.deleting);
   if(!picked||!base(picked)) picked=(active[0]||inits[0]).slug;
   const notReady=active.filter(i=>!isReady(i)).length;
-  $("#summary").textContent=`${active.length} active initiative${active.length===1?"":"s"}, ${notReady} not yet ready for ${notReady===1?"its":"their"} next phase. Synced from the repo ${snapAt?snapAt.slice(0,10):"—"}.`;
+  $("#summary").textContent=`${active.length} active initiative${active.length===1?"":"s"}${FILTER.team||FILTER.owner?" matching the filters":""}, ${notReady} not yet ready for ${notReady===1?"its":"their"} next phase. Synced from the repo ${snapAt?snapAt.slice(0,10):"—"}.`;
   renderBanner(); renderSync(); renderPipe(active); renderAttn(active); renderRoadmap(inits); renderDetail(); renderFeedback();
 }
 function renderBanner(){
