@@ -92,6 +92,9 @@ draft, in-review, approved and n/a; `synthesized` and `superseded` stay valid in
   then create it in the chosen form and record it in the manifest.
 - **Spec work**: follow the `write-spec` skill's PRD structure for `project_spec`, but write requirements to
   `requirements.yaml` and reference them by ID in the doc.
+  The hub's Project spec form saves to `edits/<slug>` → `spec.project_spec`; sync writes `spec.yaml` + `requirements.yaml`
+  and regenerates `project-spec.md`. After hand-editing either YAML, run `python scripts/spec_doc.py <slug>`.
+  Never edit `project-spec.md` by hand. Blocking open questions in `spec.yaml` hold the Spec gate.
 - **Feedback synthesis**: search `feedback/library.json` for the initiative's topics and segments, use the
   `synthesize-research` skill on the matches, and record cited entry IDs, themes, and verdicts in `feedback.yaml`.
 - **Competitive research in discovery**: use the `competitive-brief` skill.

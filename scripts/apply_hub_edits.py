@@ -12,6 +12,8 @@ attachments_add, attachments_remove}}).
 - Any phase can be chosen; a forward move records the gate items still open at the time in its decision.
 - Attachments are recorded under `attachments:`; a link used as an artifact becomes that artifact's link.
 - `patch.archived` archives or restores (logged as a decision); `delete` removes the initiative's folder.
+- `spec.project_spec` (the hub's Project spec form) is written to spec.yaml and requirements.yaml, and
+  project-spec.md is regenerated; the project_spec artifact becomes that repo doc (draft if it hadn't started).
 Writes <dir>/applied.json: {"applied": [{id, version}], "to_read": [attachments Claude still has to read]}.
 """
 import json, re, shutil, sys
@@ -20,7 +22,7 @@ from io import StringIO
 from pathlib import Path
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
-import status
+import spec_doc, status
 
 ROOT = status.ROOT
 FIELDS = {"name", "problem", "priority", "owner", "team", "size", "target_release"}
@@ -193,7 +195,26 @@ def apply_one(slug, data, yaml):
                 a["status"] = "draft"
             msgs.append(f"{slug}: {use_as} now links to {rec['title']}")
         to_read.append({"slug": slug, **rec, "asset_url": at.get("asset_url", "")})
+    # Project spec filled in on the hub's form: the artifact becomes the generated repo doc
+    spec = (data.get("spec") or {}).get("project_spec")
+    if spec is not None and "project_spec" in arts:
+        a = arts["project_spec"]
+        if a.get("form") != "repo-md" or a.get("path") != spec_doc.DOC:
+            old = a.get("link") if a.get("form") not in ("repo-md", "data") else ""
+            a["form"], a["path"] = "repo-md", spec_doc.DOC
+            a["link"] = old or f"{spec_doc.REPO_BLOB}/{slug}/{spec_doc.DOC}"
+            if old:
+                msgs.append(f"{slug}: project spec is now the form's doc ({spec_doc.DOC}); its old link is kept beside it")
+        if not a.get("link"):
+            a["link"] = f"{spec_doc.REPO_BLOB}/{slug}/{spec_doc.DOC}"
+        if a.get("status") in (None, "not-started"):
+            a["status"] = "draft"
     path.write_text(dump(yaml, doc), encoding="utf-8", newline="\n")
+    if spec is not None:
+        if "project_spec" in arts:
+            spec_doc.write(path.parent, spec, msgs, slug)
+        else:
+            msgs.append(f"{slug}: project spec form skipped (no project_spec artifact in the manifest)")
 
     target = patch.get("phase")
     if target and target != doc.get("phase"):
@@ -219,6 +240,8 @@ def apply_one(slug, data, yaml):
                     "date": date.today().isoformat(), "decision": note, "by": "Product Hub page"}))
                 path.write_text(dump(yaml, doc), encoding="utf-8", newline="\n")
                 msgs.append(f"{slug}: {note}")
+    if (path.parent / "spec.yaml").exists():
+        spec_doc.render(path.parent)   # keep the doc's header (status, owner, UX link) current
     msgs.insert(0, f"{slug}: applied")
     return True, msgs, to_read
 

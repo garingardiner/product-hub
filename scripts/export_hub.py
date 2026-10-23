@@ -22,7 +22,7 @@ def text(v):
 
 def main():
     rows = {k: [] for k in ("initiatives", "artifacts", "requirements", "hypotheses", "metrics", "decisions",
-                            "feedback", "evidence", "feedback_snapshot", "attachments")}
+                            "feedback", "evidence", "feedback_snapshot", "attachments", "specs")}
     lib_path = ROOT / "feedback" / "library.json"
     lib = json.loads(lib_path.read_text(encoding="utf-8")) if lib_path.exists() else {}
     for e in lib.get("entries") or []:
@@ -74,6 +74,14 @@ def main():
                 "status": text(a.get("status")), "owner": text(a.get("owner")), "location": text(loc),
                 "link": text(a.get("link")),
             })
+        # Everything the hub's Project spec form shows: spec.yaml sections plus every requirement (dropped too, so IDs aren't reused)
+        spec = status.load(f / "spec.yaml")
+        if spec or reqs:
+            rows["specs"].append({"slug": slug, "project_spec": {**spec, "requirements": [{
+                "id": text(r.get("id")), "title": text(r.get("title")), "description": text(r.get("description")),
+                "priority": text(r.get("priority")), "status": text(r.get("status")),
+                "acceptance_criteria": [text(c) for c in r.get("acceptance_criteria") or []],
+                "evidence": [text(e) for e in r.get("evidence") or []]} for r in reqs]}})
         for r in reqs:
             rows["requirements"].append({
                 "slug": slug, "id": r.get("id"), "title": text(r.get("title")), "priority": text(r.get("priority")),

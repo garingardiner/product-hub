@@ -2,8 +2,10 @@
 
 **Purpose:** Define what we're building and why, precisely enough for engineering to scope it.
 **Consumers:** Engineering, UX, Support, Sales.
-**Default form:** `claude-doc` following the `write-spec` PRD structure. Requirements live in `requirements.yaml`;
-the doc references them by ID instead of restating them in a second place.
+**Default form:** the Product Hub's **Project spec form** (Fill out on the Spec phase card). At sync its sections go to
+`spec.yaml`, its requirements to `requirements.yaml`, and `project-spec.md` is generated from both by `scripts/spec_doc.py`
+(form `repo-md`). A `claude-doc` following the `write-spec` PRD structure is still fine; either way requirements live in
+`requirements.yaml` and the doc references them by ID instead of restating them.
 
 ## Must contain
 - Problem statement grounded in feedback evidence

@@ -34,6 +34,11 @@ def data_checks(folder, phase):
             issues.append("hypotheses without a verdict")
         if not (fb.get("sizing") or {}).get("customer_count"):
             issues.append("sizing.customer_count missing")
+    if phase == "spec":
+        # Open questions come from the hub's Project spec form (spec.yaml); blocking ones hold the gate
+        n = sum(1 for q in load(folder / "spec.yaml").get("open_questions") or [] if q.get("blocking"))
+        if n:
+            issues.append(f"{n} blocking open question{'s' if n > 1 else ''} in the project spec")
     if phase == "spec" and "success_metrics" in GATES["spec"]:
         for m in load(folder / "metrics.yaml").get("metrics", []):
             if not all(m.get(k) for k in ("target", "method", "review_date")):
