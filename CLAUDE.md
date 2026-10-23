@@ -98,7 +98,7 @@ draft, in-review, approved and n/a; `synthesized` and `superseded` stay valid in
   The Feature/Benefits form (`spec.feature_benefits`) writes `feature-benefits.yaml` and `feature-benefits.md`; claims on
   requirements outside the scope hold the GTM gate.
   After hand-editing any of these YAML files, run `python scripts/spec_doc.py <slug>`. Never edit the generated `.md`
-  docs by hand. Blocking open questions in either spec, and P0 requirements no UX flow covers, hold the Spec gate.
+  docs by hand. Blocking open questions in either spec, and P0 requirements the UX spec doesn't list as covered, hold the Spec gate.
 - **Feedback synthesis**: search `feedback/library.json` for the initiative's topics and segments, use the
   `synthesize-research` skill on the matches, and record cited entry IDs, themes, and verdicts in `feedback.yaml`.
 - **Competitive research in discovery**: use the `competitive-brief` skill.

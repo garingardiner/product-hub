@@ -2,7 +2,8 @@
 """Specs filled in on the Product Hub's forms: write them to the repo and render their docs.
 
 Project spec: sections go to spec.yaml, requirements to requirements.yaml (merged by ID), project-spec.md is generated.
-UX spec: ux-spec.yaml (design links, flows mapped to requirement IDs, states, accessibility, questions), ux-spec.md.
+UX spec: ux-spec.yaml (UX Specification Template (Streamlined): overview, snapshot, journey, component states, copy,
+accessibility, deferred, plus requirements covered and open questions), ux-spec.md.
 Engineering scope: scope.yaml (the artifact itself; items merged by ID), engineering-scope.md.
 Feature/Benefits: feature-benefits.yaml (features mapped to requirement IDs, segments, proof points by feedback ID),
 feature-benefits.md (quotes pulled from feedback/library.json).
@@ -20,7 +21,10 @@ ROOT = status.ROOT
 DOC = "project-spec.md"
 UX_DOC = "ux-spec.md"
 UX_DATA = "ux-spec.yaml"
-STATE_KINDS = ("empty", "loading", "error", "edge")
+# keep in sync with UX_STATES and DESIGN_STATUSES in pages/product-hub.html
+UX_STATES = {"default": "Default", "hover": "Hover / focus", "loading": "Loading / pending", "empty": "Empty state",
+             "error": "Error state", "success": "Success", "disabled": "Disabled"}
+DESIGN_STATUSES = {"draft": "Draft", "in-review": "In review", "design-ready": "Design ready", "handoff": "Handoff"}
 REPO_BLOB = "https://github.com/garingardiner/product-hub/blob/main/initiatives"
 REQ_ID = re.compile(r"^R-\d{3,}$")
 FB_ID = re.compile(r"^F-\d{6}-[A-Z0-9]{4}$")
@@ -196,18 +200,23 @@ def _questions(s):
             for q in s.get("open_questions") or [] if _t(q.get("question"))]
 
 def clean_ux(spec):
+    """The hub's UX spec form, following the UX Specification Template (Streamlined)."""
     s = spec or {}
-    a = s.get("a11y") or {}
+    sub = lambda key, keys, n=2000: {k: _t((s.get(key) or {}).get(k), n) for k in keys}
     return {
-        "designs": [{"title": _t(d.get("title"), 200) or "Design", "url": _https(d.get("url"))}
-                    for d in s.get("designs") or [] if _https(d.get("url"))],
-        "flows": [{"name": _t(f.get("name"), 200), "steps": _t(f.get("steps")), "link": _https(f.get("link")),
-                   "requirements": list(dict.fromkeys(x for x in (str(i).strip() for i in f.get("requirements") or [])
-                                                      if REQ_ID.match(x)))}
-                  for f in s.get("flows") or [] if _t(f.get("name"))],
-        "states": [{"kind": x.get("kind") if x.get("kind") in STATE_KINDS else "edge", "where": _t(x.get("where"), 200),
-                    "description": _t(x.get("description"), 1000)} for x in s.get("states") or [] if _t(x.get("description"))],
-        "a11y": {k: _t(a.get(k), 2000) for k in ("keyboard", "screen_reader", "visual")},
+        "feature_name": _t(s.get("feature_name"), 200),
+        "release": _t(s.get("release"), 100),
+        "designer": _t(s.get("designer"), 100),
+        "design_status": s.get("design_status") if s.get("design_status") in DESIGN_STATUSES else "draft",
+        "figma_link": _https(s.get("figma_link")),
+        "snapshot": sub("snapshot", ("summary", "friction", "value", "demo")),
+        "journey": sub("journey", ("persona", "entry", "goal", "success"), 500),
+        "requirements": list(dict.fromkeys(x for x in (str(i).strip() for i in s.get("requirements") or []) if REQ_ID.match(x))),
+        "components": [{"component": _t(c.get("component"), 200), "state": c.get("state") if c.get("state") in UX_STATES else "default",
+                        "behavior": _t(c.get("behavior"), 1000)} for c in s.get("components") or [] if _t(c.get("component"))],
+        "copy": sub("copy", ("labels", "errors", "confirmations")),
+        "a11y": sub("a11y", ("keyboard", "screen_reader", "responsive")),
+        "deferred": _strs(s.get("deferred")),
         "open_questions": _questions(s),
         "no_open_questions": bool(s.get("no_open_questions")),
     }
@@ -219,19 +228,22 @@ def write_ux(folder, spec, msgs, slug):
     (folder / UX_DATA).write_text("# UX spec, filled in on the Product Hub's form. ux-spec.md is generated from this by "
                                   "scripts/spec_doc.py; edit this file or the form, not the doc.\n" + out.getvalue(),
                                   encoding="utf-8", newline="\n")
-    msgs.append(f"{slug}: UX spec saved ({len(ux['flows'])} flow(s), {len(ux['states'])} state(s), "
-                f"{len(ux['designs'])} design link(s))")
+    msgs.append(f"{slug}: UX spec saved ({len(ux['components'])} component state(s), "
+                f"{len(ux['requirements'])} requirement(s) covered)")
     missing = uncovered_p0(folder)
     if missing:
-        msgs.append(f"{slug}: P0 requirements not in any UX flow yet: {', '.join(missing)}")
+        msgs.append(f"{slug}: P0 requirements the UX spec doesn't cover yet: {', '.join(missing)}")
     render_ux(folder)
 
+def ux_covered(ux):
+    """Requirement IDs a UX spec covers (older files mapped them per flow)."""
+    return set(ux.get("requirements") or []) | {r for f in ux.get("flows") or [] for r in f.get("requirements") or []}
+
 def uncovered_p0(folder):
-    """P0 requirements no UX flow covers ([] when there's no UX spec form yet)."""
+    """P0 requirements the UX spec doesn't cover ([] when there's no UX spec form yet)."""
     if not (folder / UX_DATA).exists():
         return []
-    ux = status.load(folder / UX_DATA)
-    covered = {r for f in ux.get("flows") or [] for r in f.get("requirements") or []}
+    covered = ux_covered(status.load(folder / UX_DATA))
     p0 = [r.get("id") for r in status.load(folder / "requirements.yaml").get("requirements") or []
           if r.get("priority") == "P0" and r.get("status") != "dropped"]
     return [r for r in p0 if r not in covered]
@@ -241,34 +253,41 @@ def render_ux(folder):
     u = status.load(folder / UX_DATA)
     reqs = {r.get("id"): r for r in status.load(folder / "requirements.yaml").get("requirements") or []}
     art = (m.get("artifacts") or {}).get("ux_spec") or {}
-    L = [f"# UX spec: {m.get('name', folder.name)}", "",
-         f"_Generated from `{UX_DATA}` by `scripts/spec_doc.py`. Edit the form on the Product Hub, not this file._", "",
-         f"**Owner:** {art.get('owner') or m.get('owner') or '—'} · **Spec status:** {art.get('status', '—')} · "
-         f"Project spec: [{DOC}]({DOC})", ""]
-    L += ["## Design files", ""] + ([f"- [{d['title']}]({d['url']})" for d in u.get("designs") or []] or ["_None linked yet._"]) + [""]
-    L += ["## Flows and screens", ""]
-    for f in u.get("flows") or []:
-        ids = f.get("requirements") or []
-        L += [f"### {f['name']}", ""]
-        if ids:
-            L += ["Covers: " + ", ".join(f"{i} ({reqs[i].get('title')})" if i in reqs else i for i in ids), ""]
-        if f.get("steps"):
-            L += [f["steps"], ""]
-        if f.get("link"):
-            L += [f"Design: {f['link']}", ""]
-    if not u.get("flows"):
-        L += ["_None yet._", ""]
+    spec = status.load(folder / "spec.yaml")
+    d = lambda v: v or "—"
+    sn, j, c, a = (u.get(k) or {} for k in ("snapshot", "journey", "copy", "a11y"))
+    name = u.get("feature_name") or spec.get("feature_name") or m.get("name", folder.name)
+    L = [f"# UX specification: {name}", "",
+         f"_Generated from `{UX_DATA}` by `scripts/spec_doc.py`. Edit the form on the Product Hub, not this file._", ""]
+    L += ["## 1. Overview & key information", "", "| | |", "|---|---|",
+          f"| Feature / flow name | {name} |", f"| Target release | {u.get('release') or m.get('target_release') or '—'} |",
+          f"| Product designer | {d(u.get('designer'))} |", f"| Product manager | {d(m.get('owner'))} |",
+          f"| Design status | {DESIGN_STATUSES.get(u.get('design_status'), '—')} (artifact: {art.get('status', '—')}) |",
+          f"| Figma file link | {u.get('figma_link') or art.get('link') or '—'} |", "",
+          f"Project spec: [{DOC}]({DOC})", ""]
+    L += ["## 2. Sales & marketing UX snapshot", "", f"**User experience summary:** {d(sn.get('summary'))}", "",
+          "**Key delight & usability wins:**", "", f"- **Friction removed:** {d(sn.get('friction'))}",
+          f"- **Customer value:** {d(sn.get('value'))}", "",
+          "**Visual / demo talking point:** " + (f"“{sn['demo']}”" if sn.get("demo") else "—"), ""]
+    L += ["## 3. User journey & flow", "", f"- **Target persona:** {d(j.get('persona'))}", f"- **Entry point:** {d(j.get('entry'))}",
+          f"- **Primary user goal:** {d(j.get('goal'))}", f"- **Success state / exit:** {d(j.get('success'))}", ""]
+    cov = sorted(ux_covered(u))
+    L += ["**Requirements covered:** " + (", ".join(f"{i} ({reqs[i].get('title')})" if i in reqs else i for i in cov) or "none yet"), ""]
     missing = uncovered_p0(folder)
-    L += ["**P0 coverage:** " + ("every P0 requirement is in a flow." if not missing
-                                 else "not yet in any flow: " + ", ".join(missing)), ""]
-    names = {"empty": "Empty", "loading": "Loading", "error": "Error", "edge": "Edge case"}
-    L += ["## Empty, error and edge states", ""]
-    L += [f"- **{names.get(x.get('kind'), 'Edge case')}**" + (f" ({x['where']})" if x.get("where") else "") + f": {x['description']}"
-          for x in u.get("states") or []] or ["_None yet._"]
-    a = u.get("a11y") or {}
-    L += ["", "## Accessibility", "", f"- **Keyboard:** {a.get('keyboard') or '—'}",
-          f"- **Screen readers:** {a.get('screen_reader') or '—'}",
-          f"- **Visual (contrast, color, zoom):** {a.get('visual') or '—'}", ""]
+    L += ["**P0 coverage:** " + ("every P0 requirement is covered." if not missing else "not covered yet: " + ", ".join(missing)), ""]
+    L += ["## 4. UI component states & behaviors", ""]
+    comps = u.get("components") or []
+    if comps:
+        cell = lambda v: " ".join(str(v or "—").replace("|", "/").split())
+        L += ["| Screen / component | State | Behavior / visual specification |", "|---|---|---|"]
+        L += [f"| {cell(x.get('component'))} | {UX_STATES.get(x.get('state'), x.get('state'))} | {cell(x.get('behavior'))} |" for x in comps]
+    else:
+        L += ["_None yet._"]
+    L += ["", "## 5. Content & microcopy guidelines", "", f"- **Header / action labels:** {d(c.get('labels'))}",
+          f"- **Error & validation messages:** {d(c.get('errors'))}", f"- **Confirmation / success messages:** {d(c.get('confirmations'))}", ""]
+    L += ["## 6. Accessibility & responsive requirements", "", f"- **Keyboard navigation:** {d(a.get('keyboard'))}",
+          f"- **Screen reader / ARIA labels:** {d(a.get('screen_reader'))}", f"- **Breakpoints / responsive rules:** {d(a.get('responsive'))}", ""]
+    L += ["## 7. Out of scope / deferred interactions", ""] + ([f"- {x}" for x in u.get("deferred") or []] or ["_Nothing listed._"]) + [""]
     qs = u.get("open_questions") or []
     L += ["## Open design questions", ""]
     L += [f"- {'**Blocking:** ' if q.get('blocking') else ''}{q['question']} (owner: {q.get('owner') or 'unassigned'})"

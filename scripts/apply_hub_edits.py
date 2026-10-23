@@ -204,7 +204,7 @@ def apply_one(slug, data, yaml):
             msgs.append(f"{slug}: {use_as} now links to {rec['title']}")
         to_read.append({"slug": slug, **rec, "asset_url": at.get("asset_url", "")})
     # Specs filled in on the hub's forms: each artifact becomes its generated repo doc. An existing link (e.g. a Figma
-    # file) stays as the artifact's link; otherwise the UX spec links its first design file, else the doc on GitHub.
+    # file) stays as the artifact's link; otherwise the UX spec links its Figma file, else the doc on GitHub.
     forms = {k: v for k, v in (data.get("spec") or {}).items() if k in FORM_DOCS and isinstance(v, dict)}
     for key, payload in forms.items():
         if key not in arts:
@@ -213,7 +213,7 @@ def apply_one(slug, data, yaml):
         a, (file, _, label, form, fpath) = arts[key], FORM_DOCS[key]
         repo = f"{spec_doc.REPO_BLOB}/{slug}/{file}"
         old = a.get("link") if a.get("form") not in ("repo-md", "data") else ""
-        design = next((d["url"] for d in spec_doc.clean_ux(payload)["designs"]), "") if key == "ux_spec" else ""
+        design = spec_doc.clean_ux(payload)["figma_link"] if key == "ux_spec" else ""
         if a.get("form") != form or a.get("path") != fpath:
             a["form"], a["path"] = form, fpath
             if old:
