@@ -4,6 +4,8 @@
 Project spec: sections go to spec.yaml, requirements to requirements.yaml (merged by ID), project-spec.md is generated.
 UX spec: ux-spec.yaml (design links, flows mapped to requirement IDs, states, accessibility, questions), ux-spec.md.
 Engineering scope: scope.yaml (the artifact itself; items merged by ID), engineering-scope.md.
+Feature/Benefits: feature-benefits.yaml (features mapped to requirement IDs, segments, proof points by feedback ID),
+feature-benefits.md (quotes pulled from feedback/library.json).
 The YAML is the source of truth; edit the form (or the YAML), never the generated docs.
 
 Usage: python scripts/spec_doc.py <slug>    re-renders the initiative's docs from the YAML
@@ -372,6 +374,87 @@ def render_scope(folder):
     L += ["", "## Support readiness", "", s.get("support_readiness") or "—", ""]
     (folder / SCOPE_DOC).write_text("\n".join(L), encoding="utf-8", newline="\n")
 
+# ---------- Feature/Benefits ----------
+FB_DOC = "feature-benefits.md"
+FB_DATA = "feature-benefits.yaml"
+
+def clean_fb(spec):
+    s = spec or {}
+    av = s.get("availability") or {}
+    rids = lambda v: list(dict.fromkeys(x for x in (str(i).strip() for i in v or []) if REQ_ID.match(x)))
+    return {
+        "features": [{"feature": _t(f.get("feature"), 300), "benefit": _t(f.get("benefit"), 1000), "requirements": rids(f.get("requirements"))}
+                     for f in s.get("features") or [] if _t(f.get("feature"))],
+        "segments": [{"segment": _t(x.get("segment"), 60), "problem": _t(x.get("problem"), 1000)}
+                     for x in s.get("segments") or [] if _t(x.get("segment"))],
+        "proof_points": [{"id": _t(p.get("id"), 20), "note": _t(p.get("note"), 500)}
+                         for p in s.get("proof_points") or [] if FB_ID.match(_t(p.get("id"), 20))],
+        "does_not": _strs(s.get("does_not")),
+        "availability": {k: _t(av.get(k), 1000) for k in ("release", "plans", "limitations")},
+    }
+
+def write_fb(folder, spec, msgs, slug):
+    fb = clean_fb(spec)
+    out = StringIO()
+    _yaml().dump(fb, out)
+    (folder / FB_DATA).write_text("# Feature/Benefits, filled in on the Product Hub's form. feature-benefits.md is generated "
+                                  "from this by scripts/spec_doc.py; edit this file or the form, not the doc.\n" + out.getvalue(),
+                                  encoding="utf-8", newline="\n")
+    msgs.append(f"{slug}: Feature/Benefits saved ({len(fb['features'])} feature(s), {len(fb['proof_points'])} proof point(s))")
+    bad = unshipped_claims(folder)
+    if bad:
+        msgs.append(f"{slug}: Feature/Benefits claims requirements that aren't in scope: {', '.join(bad)}")
+    render_fb(folder)
+
+def in_scope_reqs(folder):
+    """Requirement IDs delivered by scope items that aren't cut."""
+    return {r for i in status.load(folder / SCOPE_DATA).get("items") or [] if i.get("status") != "cut"
+            for r in i.get("requirements") or []}
+
+def unshipped_claims(folder):
+    if not (folder / FB_DATA).exists():
+        return []
+    ok = in_scope_reqs(folder)
+    return sorted({r for f in status.load(folder / FB_DATA).get("features") or [] for r in f.get("requirements") or []} - ok)
+
+def render_fb(folder):
+    import json
+    m = status.load(folder / "initiative.yaml")
+    s = status.load(folder / FB_DATA)
+    reqs = {r.get("id"): r for r in status.load(folder / "requirements.yaml").get("requirements") or []}
+    lib_path = ROOT / "feedback" / "library.json"
+    lib = {e.get("id"): e for e in (json.loads(lib_path.read_text(encoding="utf-8")).get("entries") or [])} if lib_path.exists() else {}
+    art = (m.get("artifacts") or {}).get("feature_benefits") or {}
+    L = [f"# Feature/Benefits: {m.get('name', folder.name)}", "",
+         f"_Generated from `{FB_DATA}` by `scripts/spec_doc.py`. Edit the form on the Product Hub, not this file. "
+         "Every claim must map to a shipped requirement; quotes come only from the feedback library._", "",
+         f"**Status:** {art.get('status', '—')} · **Owner:** {art.get('owner') or m.get('owner') or '—'}", ""]
+    L += ["## Features and benefits", ""]
+    for f in s.get("features") or []:
+        ids = f.get("requirements") or []
+        L += [f"### {f['feature']}", "", f.get("benefit") or "_Benefit not written yet._", ""]
+        if ids:
+            L += ["Delivers: " + ", ".join(f"{i} ({reqs[i].get('title')})" if i in reqs else i for i in ids), ""]
+    if not s.get("features"):
+        L += ["_None yet._", ""]
+    bad = unshipped_claims(folder)
+    if bad:
+        L += [f"**Check before sharing:** {', '.join(bad)} {'is' if len(bad) == 1 else 'are'} not in the engineering scope.", ""]
+    L += ["## Target segments", ""] + ([f"- **{x['segment'].title()}:** {x.get('problem') or '—'}" for x in s.get("segments") or []] or ["_None yet._"])
+    L += ["", "## Proof points", ""]
+    for p in s.get("proof_points") or []:
+        e = lib.get(p["id"]) or {}
+        said = f"“{e['quote']}”" if e.get("quote") else (e.get("summary") or "_Entry not found in the synced library._")
+        who = ", ".join(x for x in (e.get("contact"), e.get("customer")) if x)
+        L.append(f"- {said}" + (f" ({who})" if who else "") + f" [{p['id']}]" + (f": {p['note']}" if p.get("note") else ""))
+    if not s.get("proof_points"):
+        L += ["_None yet. Use only quotes and data from the feedback library._"]
+    L += ["", "## What it does not do", ""] + ([f"- {x}" for x in s.get("does_not") or []] or ["_Not listed yet._"])
+    av = s.get("availability") or {}
+    L += ["", "## Availability", "", f"- **Release:** {av.get('release') or '—'}", f"- **Plans / tiers:** {av.get('plans') or '—'}",
+          f"- **Limitations:** {av.get('limitations') or '—'}", ""]
+    (folder / FB_DOC).write_text("\n".join(L), encoding="utf-8", newline="\n")
+
 def render_all(folder):
     if (folder / "spec.yaml").exists():
         render(folder)
@@ -379,6 +462,8 @@ def render_all(folder):
         render_ux(folder)
     if (folder / SCOPE_DOC).exists():
         render_scope(folder)   # only once the scope form has been used
+    if (folder / FB_DATA).exists():
+        render_fb(folder)
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:

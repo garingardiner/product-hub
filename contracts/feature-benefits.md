@@ -2,7 +2,10 @@
 
 **Purpose:** Equip sales and marketing to explain what shipped and why customers should care.
 **Consumers:** Sales, Marketing, Support.
-**Default form:** `claude-artifact` slides for enablement, or a one-page `claude-doc`. Marketing may adapt it.
+**Default form:** the Product Hub's **Feature/Benefits form** (Fill out on the GTM phase card). At sync it writes
+`feature-benefits.yaml` and generates `feature-benefits.md`, pulling proof-point quotes from the feedback library. Claims
+that map to requirements not in the engineering scope are flagged in the GTM gate. Enablement slides (`claude-artifact`)
+or a one-page `claude-doc` can be built from it; an existing link is kept as the artifact's link. Marketing may adapt it.
 
 ## Inputs
 Shipped scope items from `scope.yaml` (only what actually ships), customer evidence from feedback.

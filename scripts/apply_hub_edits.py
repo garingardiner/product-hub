@@ -16,6 +16,7 @@ attachments_add, attachments_remove}}).
   project-spec.md is regenerated; the project_spec artifact becomes that repo doc (draft if it hadn't started).
   `spec.ux_spec` (the UX spec form) is written to ux-spec.yaml and ux-spec.md, the same way.
   `spec.engineering_scope` is merged into scope.yaml (the artifact stays `data`) and engineering-scope.md is generated.
+  `spec.feature_benefits` is written to feature-benefits.yaml and feature-benefits.md.
 Writes <dir>/applied.json: {"applied": [{id, version}], "to_read": [attachments Claude still has to read]}.
 """
 import json, re, shutil, sys
@@ -35,7 +36,8 @@ SIZES = {"", "Small", "Medium", "Large"}   # keep in sync with SIZES there
 # Hub forms: artifact key -> (generated doc, writer, label, manifest form, manifest path)
 FORM_DOCS = {"project_spec": (spec_doc.DOC, spec_doc.write, "project spec", "repo-md", spec_doc.DOC),
              "ux_spec": (spec_doc.UX_DOC, spec_doc.write_ux, "UX spec", "repo-md", spec_doc.UX_DOC),
-             "engineering_scope": (spec_doc.SCOPE_DOC, spec_doc.write_scope, "engineering scope", "data", spec_doc.SCOPE_DATA)}
+             "engineering_scope": (spec_doc.SCOPE_DOC, spec_doc.write_scope, "engineering scope", "data", spec_doc.SCOPE_DATA),
+             "feature_benefits": (spec_doc.FB_DOC, spec_doc.write_fb, "Feature/Benefits", "repo-md", spec_doc.FB_DOC)}
 SLUG = re.compile(r"^\d{4}-q[1-4]-[a-z0-9][a-z0-9-]{1,60}$")
 
 def flow(d):
