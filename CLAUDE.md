@@ -116,6 +116,9 @@ Allowed values for `form` in a manifest:
        A document holding only a delete never triggers a sync.
     2. Run **Sync hub** above with `--skip-deletes`, then **sync feedback** (Customer feedback library section).
        Never delete an initiative in a scheduled run: deletes stay pending until the user confirms them in chat.
+    Git in scheduled runs: the session starts in the repo, so run each git command on its own, in the plain form the
+    project's permission rules allow: `git add <files>`, then `git commit -m "<message>"`, then `git push`. No `cd`,
+    `-C`, `&&` chains or other flags in front, or the run is blocked waiting for approval nobody gives.
     3. `set` `sync/status` to `{lastRunAt, lastSyncedAt (now, ISO UTC), messages: [every line the scripts printed that
        the user should see, plus anything that couldn't be read], heldDeletes: held_deletes from applied.json}`,
        then `delete` `sync/request` at the version you read. If a step fails, still write `sync/status` with
