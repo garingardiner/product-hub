@@ -1,7 +1,7 @@
 name: "API Notebook"
 slug: "2026-q4-api-notebook"
 problem: ""
-phase: engineering
+phase: gtm
 priority: P1
 owner: "Tristan Antonsen"
 team: "Build"
@@ -17,6 +17,7 @@ target_release: "2026-01"
 blockers: []
 decisions:
 - {date: '2026-10-22', decision: 'Moved from discovery to engineering, passing over feedback, spec; open at the time: concept is not-started', by: Product Hub page}
+- {date: '2026-10-23', decision: 'Moved from engineering to gtm; open at the time: engineering_scope is not-started; QA approach missing', by: Product Hub page}
 artifacts:
   concept: {form: claude-doc, link: "", status: not-started, owner: ""}
   feedback: {form: data, path: feedback.yaml, status: not-started, owner: ""}
