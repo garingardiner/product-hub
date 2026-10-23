@@ -766,6 +766,10 @@ async function saveDraft(){
   if(JSON.stringify(bl)!==JSON.stringify(b.blockers_list||[])) patch.blockers=bl;
   if(d.phase!==b.phase) patch.phase=d.phase;
   const artCh={};
+  // A started artifact needs its document: same rule the repo's status check enforces
+  const noDoc=baseArts(d.slug).filter(a=>{const v=d.art[a.key];const loc=["repo-md","data"].includes(a.form)?a.location:v.link.trim();
+    return v.status!=="not-started"&&!loc;}).map(a=>a.artifact);
+  if(noDoc.length){say(`${noDoc.join(", ")} ${noDoc.length===1?"needs":"need"} a link before ${noDoc.length===1?"it":"they"} can be draft, in review or approved. Add the link, set ${noDoc.length===1?"it":"them"} back to not-started, or mark ${noDoc.length===1?"its phase":"those phases"} not needed.`);return;}
   for(const a of baseArts(d.slug)){
     const v=d.art[a.key], c={};
     if(v.status!==a.status) c.status=v.status;

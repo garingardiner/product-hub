@@ -129,15 +129,21 @@ def apply_one(slug, data, yaml):
         if a is None:
             msgs.append(f"{slug}: unknown artifact '{key}', skipped")
             continue
-        if "status" in ch:
-            if ch["status"] in status.STATUSES:
-                a["status"] = ch["status"]
-            else:
-                msgs.append(f"{slug}: {key} status '{ch['status']}' not allowed")
         if "owner" in ch:
             a["owner"] = str(ch["owner"]).strip()
         if "link" in ch:
             a["path" if a.get("form") in ("repo-md", "data") else "link"] = str(ch["link"]).strip()
+        if "status" in ch:
+            st = ch["status"]
+            loc = a.get("path") if a.get("form") in ("repo-md", "data") else a.get("link")
+            if st not in status.STATUSES:
+                msgs.append(f"{slug}: {key} status '{st}' not allowed")
+            elif st != "not-started" and not loc:
+                # status.py treats a started artifact with no document as an error; keep the manifest valid
+                msgs.append(f"{slug}: {key} not set to {st}: it has no link yet. Add the document's link "
+                            f"(or mark its phase not needed) and set the status again")
+            else:
+                a["status"] = st
     for d in data.get("decisions_add") or []:
         text = str(d.get("decision", "")).strip()
         if text:
