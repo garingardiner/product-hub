@@ -1,8 +1,30 @@
 {
-  "exported_at": "2026-10-23T00:18:13Z",
+  "exported_at": "2026-10-23T00:28:08Z",
   "source": "Feedback Board (synced by Claude)",
-  "count": 2,
+  "count": 3,
   "entries": [
+    {
+      "id": "F-261022-YDQF",
+      "quote": "They want to use adjoint solvers and derivatives of implicit geometry to minimize drag of an airplane across 100s or 1000s of input parameters.",
+      "summary": "JetZero wants to use adjoint solvers and derivatives of implicit geometry to minimize aircraft drag across hundreds or thousands of input parameters.",
+      "type": "feature-request",
+      "sentiment": "neutral",
+      "tags": [
+        "adjoint-solvers",
+        "shape-optimization",
+        "implicit-geometry",
+        "drag-minimization"
+      ],
+      "source": "interview",
+      "customer": "JetZero",
+      "contact": "",
+      "link": "https://miro.com/app/board/uXjVHzhJp5w=/?share_link_id=593961316560",
+      "segment": "aerospace",
+      "date": "2026-10-22",
+      "initiative": "",
+      "requirements": [],
+      "createdAt": "2026-10-23T00:18:21.256Z"
+    },
     {
       "id": "F-261022-Y7NY",
       "quote": "We here at Planes r Us need to automate things as much as we can and would love to play with the Notebook API when its available.",
