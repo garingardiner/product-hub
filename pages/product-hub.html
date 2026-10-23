@@ -125,8 +125,11 @@ textarea{width:100%;min-height:72px;resize:vertical;line-height:1.45}
 
 /* Phases card */
 .phases{grid-column:1/-1}
-.phase-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr));gap:10px}
-.phase{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;gap:8px;align-content:start;min-width:0;background:var(--sunk)}
+.phase-grid{display:grid;gap:10px}
+.phase{border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:grid;grid-template-columns:minmax(0,15rem) minmax(0,1fr);gap:10px 20px;align-items:start;min-width:0;background:var(--sunk)}
+.phase-side,.phase-main{display:grid;gap:6px;align-content:start;min-width:0}
+.phase .items{grid-template-columns:repeat(auto-fill,minmax(min(100%,17rem),1fr));gap:10px 16px}
+@media (max-width:44rem){.phase{grid-template-columns:1fr}}
 .phase.current{border-color:var(--accent);background:var(--surface)}
 .phase.skipped{border-style:dashed}
 .phase.skipped .items{opacity:.6}
@@ -604,12 +607,16 @@ function phasesCard(i,a){
       const pa=a.filter(x=>PHASE_ARTS[p].includes(x.key)), pl=list.filter(x=>x.phase===p);
       const open=addingFor&&addingFor.slug===i.slug&&addingFor.phase===p;
       const skipped=i.skip.includes(p);
+      // One row per phase, top to bottom: name and actions on the left, artifacts and links on the right
       return el("div",{class:"phase"+(p===i.phase?" current":"")+(skipped?" skipped":""),id:"phase-card-"+p},
-        el("div",{class:"phase-head"},
-          el("span",{},el("b",{text:PHASE_NAME[p]}),p===i.phase?[" ",pill("current","")]:null,skipped?[" ",pill("Not needed","dim")]:null),
-          canEdit&&!open?el("button",{class:"btn ghost small",type:"button",onclick:()=>{addingFor={slug:i.slug,phase:p};renderDetail();}},"Add link or file"):null),
-        skipped?el("p",{class:"note",text:"Its gate doesn't apply; the initiative moves straight past this phase."}):null,
-        canEdit?el("div",{},el("button",{class:"btn ghost small",type:"button",onclick:()=>toggleSkip(i,p)},skipped?"Needed after all":"Mark not needed")):null,
+        el("div",{class:"phase-side"},
+          el("span",{},el("span",{class:"col-num",text:`${PHASES.indexOf(p)+1} `}),el("b",{text:PHASE_NAME[p]}),p===i.phase?[" ",pill("current","")]:null,skipped?[" ",pill("Not needed","dim")]:null),
+          el("span",{class:"note",style:"font-size:.8rem",text:"Gate: "+GATE_TEXT[p]}),
+          skipped?el("p",{class:"note",text:"Its gate doesn't apply; the initiative moves straight past this phase."}):null,
+          canEdit?el("div",{class:"actions",style:"gap:6px"},
+            !open?el("button",{class:"btn ghost small",type:"button",onclick:()=>{addingFor={slug:i.slug,phase:p};renderDetail();}},"Add link or file"):null,
+            el("button",{class:"btn ghost small",type:"button",onclick:()=>toggleSkip(i,p)},skipped?"Needed after all":"Mark not needed")):null),
+        el("div",{class:"phase-main"},
         el("ul",{class:"items"},
           pa.map(x=>el("li",{class:x.pending?"pend-row":""},
             el("div",{class:"row1"},el("span",{class:"t",text:x.artifact}),pill(x.status)),
@@ -635,7 +642,7 @@ function phasesCard(i,a){
                 canEdit?el("button",{class:"btn ghost small",type:"button",onclick:()=>removeAtt(i.slug,x)},"Remove"):null));
           })),
         !pa.length&&!pl.length?el("p",{class:"note",text:"Nothing here yet."}):null,
-        open?attachForm(i,p,a):null);
+        open?attachForm(i,p,a):null));
     })));
 }
 // Artifacts with a fill-in form get a button and a progress line on their phase card
