@@ -246,14 +246,16 @@ textarea{width:100%;min-height:72px;resize:vertical;line-height:1.45}
 /* ---------- constants (mirror scripts/status.py) ---------- */
 const PHASES=["discovery","feedback","spec","engineering","gtm"];
 const PHASE_NAME={discovery:"Discovery",feedback:"Feedback",spec:"Spec",engineering:"Engineering",gtm:"GTM",done:"Done",parked:"Parked"};
-const GATE_TEXT={discovery:"Concept approved",feedback:"Feedback synthesized, sizing recorded",spec:"Project spec, UX spec and success metrics approved",engineering:"Scope approved, every P0 covered, QA approach set",gtm:"Feature/Benefits approved, then post-launch review"};
-const GATES={discovery:{concept:["approved"]},feedback:{feedback:["synthesized","approved"]},spec:{project_spec:["approved"],ux_spec:["approved"],success_metrics:["approved"]},engineering:{engineering_scope:["approved"]},gtm:{feature_benefits:["approved"]}};
+const GATE_TEXT={discovery:"Concept approved",feedback:"Feedback synthesized, sizing recorded",spec:"Project spec and UX spec approved",engineering:"Scope approved, every P0 covered, QA approach set",gtm:"Feature/Benefits approved, then post-launch review"};
+const GATES={discovery:{concept:["approved"]},feedback:{feedback:["synthesized","approved"]},spec:{project_spec:["approved"],ux_spec:["approved"]},engineering:{engineering_scope:["approved"]},gtm:{feature_benefits:["approved"]}};
 // Offered in the editor; the repo also accepts synthesized and superseded, which still show if already set
 const STATUSES=["not-started","draft","in-review","approved","n/a"];
 const STATUS_LABEL={"n/a":"N/A (not needed)"};
 const ART_LABEL={concept:"Concept",feedback:"Feedback",project_spec:"Project spec",ux_spec:"UX spec",success_metrics:"Success metrics",engineering_scope:"Engineering scope",feature_benefits:"Feature/Benefits"};
 const SEG={aerospace:"Aerospace",automotive:"Automotive",power:"Power"};
-const PHASE_ARTS={discovery:["concept"],feedback:["feedback"],spec:["project_spec","ux_spec","success_metrics"],engineering:["engineering_scope"],gtm:["feature_benefits"]};
+const PHASE_ARTS={discovery:["concept"],feedback:["feedback"],spec:["project_spec","ux_spec"],engineering:["engineering_scope"],gtm:["feature_benefits"]};
+// Paused artifacts: kept in the repo, not shown or required here (matches GATES in scripts/status.py)
+const HIDDEN_ARTS=["success_metrics"];
 // Mirrors initiatives/_template/initiative.yaml, for initiatives created here and not synced yet
 const TEMPLATE_ARTS=[["concept","claude-doc"],["feedback","data","feedback.yaml"],["project_spec","claude-doc"],["ux_spec","figma"],["success_metrics","data","metrics.yaml"],["engineering_scope","data","scope.yaml"],["feature_benefits","claude-artifact"]];
 const MAX_UPLOAD=20*1024*1024;
@@ -315,9 +317,9 @@ function base(slug){
     phase:"discovery",blockers_list:[],gate_data:[],requirements:0,p0_requirements:0,open_hypotheses:0,_new:true};
 }
 function baseArts(slug){
-  const r=rows("artifacts").filter(a=>a.slug===slug);
+  const r=rows("artifacts").filter(a=>a.slug===slug&&!HIDDEN_ARTS.includes(a.key));
   if(r.length||!(EDITS[slug]||{}).create) return r;
-  return TEMPLATE_ARTS.map(([key,form,path])=>({slug,key,artifact:ART_LABEL[key],form,status:"not-started",owner:"",location:path||""}));
+  return TEMPLATE_ARTS.filter(([key])=>!HIDDEN_ARTS.includes(key)).map(([key,form,path])=>({slug,key,artifact:ART_LABEL[key],form,status:"not-started",owner:"",location:path||""}));
 }
 function atts(slug){
   const e=EDITS[slug]||{}, rm=new Set(e.attachments_remove||[]);
@@ -485,7 +487,6 @@ function renderDetail(){
           {key:"link",label:"Interview",render:r=>/^https:\/\//.test(r.link||"")?el("a",{href:r.link,target:"_blank",rel:"noopener",text:"Open"}):document.createTextNode("")}],fb,"No feedback linked yet. Pick this initiative on the Feedback Board.")),
       el("div",{class:"panel"},el("h3",{text:"Requirements"}),table([{key:"id",label:"ID"},{key:"title",label:"Title",cls:"wide"},{key:"priority",label:"Priority",pill:true},{key:"status",label:"Status",pill:true},{key:"evidence",label:"Evidence",num:true}],rows("requirements").filter(r=>r.slug===i.slug),"No requirements yet.")),
       el("div",{class:"panel"},el("h3",{text:"Hypotheses"}),table([{key:"id",label:"ID"},{key:"statement",label:"Statement",cls:"wide"},{key:"verdict",label:"Verdict",pill:true}],rows("hypotheses").filter(r=>r.slug===i.slug),"No hypotheses yet.")),
-      el("div",{class:"panel"},el("h3",{text:"Success metrics"}),table([{key:"name",label:"Metric",cls:"wide"},{key:"type",label:"Type",cls:"cap"},{key:"target",label:"Target"},{key:"method",label:"Method"},{key:"review_date",label:"Review"}],rows("metrics").filter(r=>r.slug===i.slug),"No metrics yet.")),
       el("div",{class:"panel"},el("h3",{text:"Decisions"}),table([{key:"date",label:"Date"},{key:"decision",label:"Decision",cls:"wide"},{key:"by",label:"By"}],decs,"No decisions logged yet."))
     ));
   if(canEdit) box.append(lifecyclePanel(i));

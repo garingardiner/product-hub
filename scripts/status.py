@@ -16,7 +16,8 @@ NOT_STARTED = ("not-started", "n/a", None)  # statuses that need no document; n/
 GATES = {
     "discovery": {"concept": {"approved"}},
     "feedback": {"feedback": {"synthesized", "approved"}},
-    "spec": {"project_spec": {"approved"}, "ux_spec": {"approved"}, "success_metrics": {"approved"}},
+    # success_metrics is paused for now (not in the gate, hidden on the hub); add it back here to restore it
+    "spec": {"project_spec": {"approved"}, "ux_spec": {"approved"}},
     "engineering": {"engineering_scope": {"approved"}},
     "gtm": {"feature_benefits": {"approved"}},
 }
@@ -33,7 +34,7 @@ def data_checks(folder, phase):
             issues.append("hypotheses without a verdict")
         if not (fb.get("sizing") or {}).get("customer_count"):
             issues.append("sizing.customer_count missing")
-    if phase == "spec":
+    if phase == "spec" and "success_metrics" in GATES["spec"]:
         for m in load(folder / "metrics.yaml").get("metrics", []):
             if not all(m.get(k) for k in ("target", "method", "review_date")):
                 issues.append(f"metric '{m.get('name')}' missing target/method/review_date")

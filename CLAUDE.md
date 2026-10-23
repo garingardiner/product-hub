@@ -55,9 +55,13 @@ informs several initiatives and arrives before any initiative exists.
 |---|-------|------------------------------------------------------|---------------|
 | 1 | `discovery` | `concept` | User research, UX, Sales |
 | 2 | `feedback` | `feedback` (status `synthesized`), sizing recorded in `feedback.yaml` | User research, UX |
-| 3 | `spec` | `project_spec`, `ux_spec`, `success_metrics` (every metric has a target and a method) | Engineering, UX, Support, Sales |
+| 3 | `spec` | `project_spec`, `ux_spec` | Engineering, UX, Support, Sales |
 | 4 | `engineering` | `engineering_scope` (every P0 requirement covered, QA approach filled in) | Engineering, Support, QA |
-| 5 | `gtm` | `feature_benefits`; then post-launch review against `success_metrics` | Sales, Marketing |
+| 5 | `gtm` | `feature_benefits` | Sales, Marketing |
+
+**Success metrics are paused for now.** `success_metrics` is out of the Spec gate and hidden on the Product Hub, but each
+initiative keeps its `metrics.yaml` and manifest entry. Don't ask for or create metrics unless the user brings them up. To
+restore: add it back to `GATES["spec"]` in `scripts/status.py` and to the hub's `GATES`/`PHASE_ARTS` (remove it from `HIDDEN_ARTS`).
 
 Phase inputs are the previous phases' outputs. In particular, `engineering` takes the project spec, UX spec,
 and requirements as input (not new customer interviews), and `gtm` takes the shipped scope.
