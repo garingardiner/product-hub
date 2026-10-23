@@ -1,0 +1,26 @@
+name: "Non-uniform solver"
+slug: "2026-q4-non-uniform-solver"
+problem: ""
+phase: discovery
+priority: P1
+owner: "Bryce Mazurowski"
+team: ""
+size: ""
+collaborators:
+  user_research: []
+  ux: []
+  sales: []
+  engineering: []
+  support: []
+  marketing: []
+target_release: ""
+blockers: []
+decisions: []
+artifacts:
+  concept: {form: claude-doc, link: "", status: not-started, owner: ""}
+  feedback: {form: data, path: feedback.yaml, status: not-started, owner: ""}
+  project_spec: {form: claude-doc, link: "", status: not-started, owner: ""}
+  ux_spec: {form: figma, link: "", status: not-started, owner: ""}
+  success_metrics: {form: data, path: metrics.yaml, status: not-started, owner: ""}
+  engineering_scope: {form: data, path: scope.yaml, status: not-started, owner: ""}
+  feature_benefits: {form: claude-artifact, link: "", status: not-started, owner: ""}

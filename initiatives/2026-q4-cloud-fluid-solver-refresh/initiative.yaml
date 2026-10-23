@@ -1,4 +1,4 @@
-name: "Cloud Fluid Solver Refresh"
+name: "CAD Fluid Solver (Refresh)"
 slug: "2026-q4-cloud-fluid-solver-refresh"
 problem: "Replace our current solver with an updated one that is more flexible and offers additional capabilities"
 phase: discovery

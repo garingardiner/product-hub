@@ -1,0 +1,9 @@
+# Stable IDs; never reuse a retired ID. Priority: P0 must-have, P1 nice-to-have, P2 future.
+requirements: []
+#  - id: R-001
+#    title: ""
+#    description: ""
+#    priority: P0
+#    status: draft          # draft | validated | in-scope | shipped | dropped
+#    acceptance_criteria: []
+#    evidence: []           # feedback library IDs, e.g. F-261022-AB12
