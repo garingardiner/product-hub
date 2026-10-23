@@ -15,6 +15,7 @@ attachments_add, attachments_remove}}).
 - `spec.project_spec` (the hub's Project spec form) is written to spec.yaml and requirements.yaml, and
   project-spec.md is regenerated; the project_spec artifact becomes that repo doc (draft if it hadn't started).
   `spec.ux_spec` (the UX spec form) is written to ux-spec.yaml and ux-spec.md, the same way.
+  `spec.engineering_scope` is merged into scope.yaml (the artifact stays `data`) and engineering-scope.md is generated.
 Writes <dir>/applied.json: {"applied": [{id, version}], "to_read": [attachments Claude still has to read]}.
 """
 import json, re, shutil, sys
@@ -31,9 +32,10 @@ PRIORITIES = {"P0", "P1", "P2"}
 TEAMS = {"", "Build", "Analyze", "Orchestrate"}   # keep in sync with TEAMS in pages/product-hub.html
 OWNERS = {"", "Tristan Antonsen", "Bryce Mazurowski", "Patrick Ogdin"}   # keep in sync with OWNERS there
 SIZES = {"", "Small", "Medium", "Large"}   # keep in sync with SIZES there
-# Hub forms: artifact key -> (generated doc, writer, label)
-FORM_DOCS = {"project_spec": (spec_doc.DOC, spec_doc.write, "project spec"),
-             "ux_spec": (spec_doc.UX_DOC, spec_doc.write_ux, "UX spec")}
+# Hub forms: artifact key -> (generated doc, writer, label, manifest form, manifest path)
+FORM_DOCS = {"project_spec": (spec_doc.DOC, spec_doc.write, "project spec", "repo-md", spec_doc.DOC),
+             "ux_spec": (spec_doc.UX_DOC, spec_doc.write_ux, "UX spec", "repo-md", spec_doc.UX_DOC),
+             "engineering_scope": (spec_doc.SCOPE_DOC, spec_doc.write_scope, "engineering scope", "data", spec_doc.SCOPE_DATA)}
 SLUG = re.compile(r"^\d{4}-q[1-4]-[a-z0-9][a-z0-9-]{1,60}$")
 
 def flow(d):
@@ -206,14 +208,14 @@ def apply_one(slug, data, yaml):
         if key not in arts:
             msgs.append(f"{slug}: {key} form skipped (no {key} artifact in the manifest)")
             continue
-        a, file, label = arts[key], FORM_DOCS[key][0], FORM_DOCS[key][2]
+        a, (file, _, label, form, fpath) = arts[key], FORM_DOCS[key]
         repo = f"{spec_doc.REPO_BLOB}/{slug}/{file}"
         old = a.get("link") if a.get("form") not in ("repo-md", "data") else ""
         design = next((d["url"] for d in spec_doc.clean_ux(payload)["designs"]), "") if key == "ux_spec" else ""
-        if a.get("form") != "repo-md" or a.get("path") != file:
-            a["form"], a["path"] = "repo-md", file
+        if a.get("form") != form or a.get("path") != fpath:
+            a["form"], a["path"] = form, fpath
             if old:
-                msgs.append(f"{slug}: {label} is now the form's doc ({file}); its link is kept beside it")
+                msgs.append(f"{slug}: {label} is now the form's {fpath}; its link is kept beside it")
         if old:
             a["link"] = old
         elif design and a.get("link", "") in ("", repo):

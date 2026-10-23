@@ -3,6 +3,10 @@
 **Purpose:** Agree what will be built, in what order, and how it will be verified.
 **Consumers:** Engineering, QA, Support, PM.
 **Default form:** `data` (`scope.yaml`) synced to `asana`. Engineering works from tasks; the YAML keeps traceability.
+Fill it in with the Product Hub's **Engineering scope form** (Fill out on the Engineering phase card): items with stable
+IDs (`S-01`), the requirements each delivers, estimate, status and Asana link, plus out of scope, dependencies, risks, QA
+and support readiness. At sync it's merged into `scope.yaml` (fields the form doesn't show are kept) and
+`engineering-scope.md` is generated. Synced items are set to `cut`, never removed.
 
 ## Inputs
 Project spec, UX spec, `requirements.yaml`. (Not new customer interviews. Escalate back to Spec if requirements change.)

@@ -94,6 +94,7 @@ draft, in-review, approved and n/a; `synthesized` and `superseded` stay valid in
   `requirements.yaml` and reference them by ID in the doc.
   The hub's Project spec form saves to `edits/<slug>` → `spec.project_spec`; sync writes `spec.yaml` + `requirements.yaml`
   and regenerates `project-spec.md`. The UX spec form (`spec.ux_spec`) writes `ux-spec.yaml` and `ux-spec.md`.
+  The Engineering scope form (`spec.engineering_scope`) merges into `scope.yaml` and generates `engineering-scope.md`.
   After hand-editing any of these YAML files, run `python scripts/spec_doc.py <slug>`. Never edit the generated `.md`
   docs by hand. Blocking open questions in either spec, and P0 requirements no UX flow covers, hold the Spec gate.
 - **Feedback synthesis**: search `feedback/library.json` for the initiative's topics and segments, use the

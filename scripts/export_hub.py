@@ -75,9 +75,13 @@ def main():
                 "link": text(a.get("link")),
             })
         # What the hub's spec forms show: spec.yaml plus every requirement (dropped too, so IDs aren't reused), and ux-spec.yaml
-        spec, ux = status.load(f / "spec.yaml"), status.load(f / "ux-spec.yaml")
-        if spec or reqs or ux:
-            rows["specs"].append({"slug": slug, "ux_spec": ux, "project_spec": {**spec, "requirements": [{
+        spec, ux, scope = status.load(f / "spec.yaml"), status.load(f / "ux-spec.yaml"), status.load(f / "scope.yaml")
+        if spec or reqs or ux or scope:
+            rows["specs"].append({"slug": slug, "ux_spec": ux, "engineering_scope": json.loads(json.dumps(scope, default=str)),
+                                  # which generated docs exist, so the hub only links to real files
+                                  "docs": {"project_spec": (f / "project-spec.md").exists(), "ux_spec": (f / "ux-spec.md").exists(),
+                                           "engineering_scope": (f / "engineering-scope.md").exists()},
+                                  "project_spec": {**spec, "requirements": [{
                 "id": text(r.get("id")), "title": text(r.get("title")), "description": text(r.get("description")),
                 "priority": text(r.get("priority")), "status": text(r.get("status")),
                 "acceptance_criteria": [text(c) for c in r.get("acceptance_criteria") or []],

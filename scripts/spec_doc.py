@@ -3,6 +3,7 @@
 
 Project spec: sections go to spec.yaml, requirements to requirements.yaml (merged by ID), project-spec.md is generated.
 UX spec: ux-spec.yaml (design links, flows mapped to requirement IDs, states, accessibility, questions), ux-spec.md.
+Engineering scope: scope.yaml (the artifact itself; items merged by ID), engineering-scope.md.
 The YAML is the source of truth; edit the form (or the YAML), never the generated docs.
 
 Usage: python scripts/spec_doc.py <slug>    re-renders the initiative's docs from the YAML
@@ -258,11 +259,126 @@ def render_ux(folder):
           for q in qs] or ["_None right now._" if u.get("no_open_questions") else "_None listed yet._"]
     (folder / UX_DOC).write_text("\n".join(L) + "\n", encoding="utf-8", newline="\n")
 
+# ---------- Engineering scope ----------
+# scope.yaml is the artifact itself (form `data`); the form writes it and engineering-scope.md is generated from it.
+SCOPE_DOC = "engineering-scope.md"
+SCOPE_DATA = "scope.yaml"
+SCOPE_ID = re.compile(r"^S-\d{2,}$")
+SCOPE_STATUSES = ("planned", "in-progress", "done", "cut")
+
+def _strs(v, n=500):
+    return [x for x in (_t(i, n) for i in v or []) if x]
+
+def clean_scope(spec):
+    s = spec or {}
+    qa = s.get("qa") or {}
+    items, bad = [], []
+    for it in s.get("items") or []:
+        sid = _t(it.get("id"), 20)
+        if not SCOPE_ID.match(sid):
+            bad.append(sid or "(no id)")
+            continue
+        if not _t(it.get("title")):
+            continue
+        items.append({"id": sid, "title": _t(it.get("title"), 300),
+                      "requirements": list(dict.fromkeys(x for x in (str(i).strip() for i in it.get("requirements") or []) if REQ_ID.match(x))),
+                      "estimate": _t(it.get("estimate"), 50), "asana_task": _https(it.get("asana_task")),
+                      "status": it.get("status") if it.get("status") in SCOPE_STATUSES else "planned"})
+    risks = []
+    for r in s.get("risks") or []:
+        r = r if isinstance(r, dict) else {"risk": r}
+        if _t(r.get("risk")):
+            risks.append({"risk": _t(r.get("risk"), 500), "mitigation": _t(r.get("mitigation"), 500)})
+    return {"release": _t(s.get("release"), 100), "items": items, "out_of_scope": _strs(s.get("out_of_scope")),
+            "dependencies": _strs(s.get("dependencies")), "risks": risks,
+            "qa": {"owner": _t(qa.get("owner"), 100), "approach": _t(qa.get("approach")),
+                   "automated": _t(qa.get("automated")), "manual": _t(qa.get("manual"))},
+            "support_readiness": _t(s.get("support_readiness"))}, bad
+
+def write_scope(folder, spec, msgs, slug):
+    new, bad = clean_scope(spec)
+    if bad:
+        msgs.append(f"{slug}: scope items skipped (bad ID): {', '.join(bad)}")
+    y = _yaml()
+    path = folder / SCOPE_DATA
+    doc = (y.load(path.read_text(encoding="utf-8")) if path.exists() else None) or CommentedMap()
+    # Merge items by ID so fields the form doesn't show (added by hand or by the Asana sync) survive
+    old = {i.get("id"): i for i in doc.get("items") or [] if isinstance(i, dict)}
+    items = CommentedSeq()
+    for it in new["items"]:
+        cur = old.get(it["id"], CommentedMap())
+        for k, v in it.items():
+            cur[k] = _flow_list(v) if k == "requirements" else v
+        items.append(cur)
+    kept_cut = [i for sid, i in old.items() if sid not in {x["id"] for x in new["items"]} and i.get("status") == "cut"]
+    items.extend(kept_cut)
+    doc["release"] = new["release"]
+    doc["items"] = items
+    for k in ("out_of_scope", "dependencies", "risks", "support_readiness"):
+        doc[k] = new[k]
+    qa = doc.get("qa") if isinstance(doc.get("qa"), dict) else CommentedMap()
+    qa.update(new["qa"])
+    doc["qa"] = qa
+    out = StringIO()
+    y.dump(doc, out)
+    path.write_text(out.getvalue(), encoding="utf-8", newline="\n")
+    live = [i for i in new["items"] if i["status"] != "cut"]
+    msgs.append(f"{slug}: engineering scope saved ({len(live)} item(s) in scope, "
+                f"{len(new['items']) - len(live) + len(kept_cut)} cut)")
+    render_scope(folder)
+
+def render_scope(folder):
+    m = status.load(folder / "initiative.yaml")
+    s = status.load(folder / SCOPE_DATA)
+    reqs = {r.get("id"): r for r in status.load(folder / "requirements.yaml").get("requirements") or []}
+    art = (m.get("artifacts") or {}).get("engineering_scope") or {}
+    items = s.get("items") or []
+    inputs = [f"[{d}]({d})" for d in (DOC, UX_DOC) if (folder / d).exists()] + ["`requirements.yaml`"]
+    L = [f"# Engineering scope: {m.get('name', folder.name)}", "",
+         f"_Generated from `{SCOPE_DATA}` by `scripts/spec_doc.py`. Edit the form on the Product Hub, not this file._", "",
+         f"**Release:** {s.get('release') or '—'} · **Scope status:** {art.get('status', '—')} · Inputs: {', '.join(inputs)}", ""]
+    L += ["## In scope", ""]
+    live = [i for i in items if i.get("status") != "cut"]
+    if live:
+        L += ["| ID | Item | Requirements | Estimate | Status | Asana |", "|---|---|---|---|---|---|"]
+        for i in live:
+            asana = f"[task]({i['asana_task']})" if i.get("asana_task") else "—"
+            L.append(f"| {i.get('id')} | {i.get('title')} | {', '.join(i.get('requirements') or []) or '—'} | "
+                     f"{i.get('estimate') or '—'} | {i.get('status') or 'planned'} | {asana} |")
+    else:
+        L += ["_None yet._"]
+    covered = {r for i in live for r in i.get("requirements") or []}
+    p0 = [rid for rid, r in reqs.items() if r.get("priority") == "P0" and r.get("status") != "dropped"]
+    miss = [r for r in p0 if r not in covered]
+    L += ["", "**P0 coverage:** " + ("every P0 requirement is in scope." if not miss else "not in scope yet: " + ", ".join(miss)), ""]
+    cut = [i for i in items if i.get("status") == "cut"]
+    L += ["## Out of scope for this release", ""] + [f"- {x}" for x in s.get("out_of_scope") or []] \
+         + [f"- {i.get('id')} {i.get('title')} (cut)" for i in cut]
+    if not (s.get("out_of_scope") or cut):
+        L += ["_Nothing listed._"]
+    L += ["", "## Dependencies", ""] + ([f"- {d}" for d in s.get("dependencies") or []] or ["_None listed._"])
+    L += ["", "## Risks", ""]
+    for r in s.get("risks") or []:
+        r = r if isinstance(r, dict) else {"risk": r}
+        L.append(f"- {r.get('risk')}" + (f" (mitigation: {r['mitigation']})" if r.get("mitigation") else ""))
+    if not s.get("risks"):
+        L += ["_None listed._"]
+    qa = s.get("qa") or {}
+    L += ["", "## QA approach", "", f"- **Test plan owner:** {qa.get('owner') or '—'}",
+          f"- **Approach:** {qa.get('approach') or '—'}", f"- **Automated:** {qa.get('automated') or '—'}",
+          f"- **Manual:** {qa.get('manual') or '—'}", "", "Acceptance criteria to cover:", ""]
+    ac = [(rid, c) for rid in sorted(covered) for c in (reqs.get(rid) or {}).get("acceptance_criteria") or []]
+    L += [f"- {rid}: {c}" for rid, c in ac] or ["_No acceptance criteria on the in-scope requirements yet._"]
+    L += ["", "## Support readiness", "", s.get("support_readiness") or "—", ""]
+    (folder / SCOPE_DOC).write_text("\n".join(L), encoding="utf-8", newline="\n")
+
 def render_all(folder):
     if (folder / "spec.yaml").exists():
         render(folder)
     if (folder / UX_DATA).exists():
         render_ux(folder)
+    if (folder / SCOPE_DOC).exists():
+        render_scope(folder)   # only once the scope form has been used
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
