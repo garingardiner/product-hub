@@ -2,7 +2,10 @@
 
 **Purpose:** Show how the experience works, covering every P0 requirement.
 **Consumers:** Engineering, PM, Support.
-**Default form:** `figma` or a `claude-artifact` design. Prose only where flows need explanation.
+**Default form:** the designs live in `figma` (or a `claude-artifact` design); the Product Hub's **UX spec form**
+(Fill out on the Spec phase card) records the design links, flows mapped to requirement IDs, states, accessibility and
+open questions. At sync it writes `ux-spec.yaml` and generates `ux-spec.md` (form `repo-md`, with the Figma link kept as
+the artifact's link). P0 requirements no flow covers, and blocking design questions, show in the Spec gate.
 
 ## Must contain
 - Flows and screens covering each P0 requirement (note requirement IDs on frames)

@@ -74,10 +74,10 @@ def main():
                 "status": text(a.get("status")), "owner": text(a.get("owner")), "location": text(loc),
                 "link": text(a.get("link")),
             })
-        # Everything the hub's Project spec form shows: spec.yaml sections plus every requirement (dropped too, so IDs aren't reused)
-        spec = status.load(f / "spec.yaml")
-        if spec or reqs:
-            rows["specs"].append({"slug": slug, "project_spec": {**spec, "requirements": [{
+        # What the hub's spec forms show: spec.yaml plus every requirement (dropped too, so IDs aren't reused), and ux-spec.yaml
+        spec, ux = status.load(f / "spec.yaml"), status.load(f / "ux-spec.yaml")
+        if spec or reqs or ux:
+            rows["specs"].append({"slug": slug, "ux_spec": ux, "project_spec": {**spec, "requirements": [{
                 "id": text(r.get("id")), "title": text(r.get("title")), "description": text(r.get("description")),
                 "priority": text(r.get("priority")), "status": text(r.get("status")),
                 "acceptance_criteria": [text(c) for c in r.get("acceptance_criteria") or []],

@@ -14,6 +14,7 @@ attachments_add, attachments_remove}}).
 - `patch.archived` archives or restores (logged as a decision); `delete` removes the initiative's folder.
 - `spec.project_spec` (the hub's Project spec form) is written to spec.yaml and requirements.yaml, and
   project-spec.md is regenerated; the project_spec artifact becomes that repo doc (draft if it hadn't started).
+  `spec.ux_spec` (the UX spec form) is written to ux-spec.yaml and ux-spec.md, the same way.
 Writes <dir>/applied.json: {"applied": [{id, version}], "to_read": [attachments Claude still has to read]}.
 """
 import json, re, shutil, sys
@@ -30,6 +31,9 @@ PRIORITIES = {"P0", "P1", "P2"}
 TEAMS = {"", "Build", "Analyze", "Orchestrate"}   # keep in sync with TEAMS in pages/product-hub.html
 OWNERS = {"", "Tristan Antonsen", "Bryce Mazurowski", "Patrick Ogdin"}   # keep in sync with OWNERS there
 SIZES = {"", "Small", "Medium", "Large"}   # keep in sync with SIZES there
+# Hub forms: artifact key -> (generated doc, writer, label)
+FORM_DOCS = {"project_spec": (spec_doc.DOC, spec_doc.write, "project spec"),
+             "ux_spec": (spec_doc.UX_DOC, spec_doc.write_ux, "UX spec")}
 SLUG = re.compile(r"^\d{4}-q[1-4]-[a-z0-9][a-z0-9-]{1,60}$")
 
 def flow(d):
@@ -195,26 +199,33 @@ def apply_one(slug, data, yaml):
                 a["status"] = "draft"
             msgs.append(f"{slug}: {use_as} now links to {rec['title']}")
         to_read.append({"slug": slug, **rec, "asset_url": at.get("asset_url", "")})
-    # Project spec filled in on the hub's form: the artifact becomes the generated repo doc
-    spec = (data.get("spec") or {}).get("project_spec")
-    if spec is not None and "project_spec" in arts:
-        a = arts["project_spec"]
-        if a.get("form") != "repo-md" or a.get("path") != spec_doc.DOC:
-            old = a.get("link") if a.get("form") not in ("repo-md", "data") else ""
-            a["form"], a["path"] = "repo-md", spec_doc.DOC
-            a["link"] = old or f"{spec_doc.REPO_BLOB}/{slug}/{spec_doc.DOC}"
+    # Specs filled in on the hub's forms: each artifact becomes its generated repo doc. An existing link (e.g. a Figma
+    # file) stays as the artifact's link; otherwise the UX spec links its first design file, else the doc on GitHub.
+    forms = {k: v for k, v in (data.get("spec") or {}).items() if k in FORM_DOCS and isinstance(v, dict)}
+    for key, payload in forms.items():
+        if key not in arts:
+            msgs.append(f"{slug}: {key} form skipped (no {key} artifact in the manifest)")
+            continue
+        a, file, label = arts[key], FORM_DOCS[key][0], FORM_DOCS[key][2]
+        repo = f"{spec_doc.REPO_BLOB}/{slug}/{file}"
+        old = a.get("link") if a.get("form") not in ("repo-md", "data") else ""
+        design = next((d["url"] for d in spec_doc.clean_ux(payload)["designs"]), "") if key == "ux_spec" else ""
+        if a.get("form") != "repo-md" or a.get("path") != file:
+            a["form"], a["path"] = "repo-md", file
             if old:
-                msgs.append(f"{slug}: project spec is now the form's doc ({spec_doc.DOC}); its old link is kept beside it")
-        if not a.get("link"):
-            a["link"] = f"{spec_doc.REPO_BLOB}/{slug}/{spec_doc.DOC}"
+                msgs.append(f"{slug}: {label} is now the form's doc ({file}); its link is kept beside it")
+        if old:
+            a["link"] = old
+        elif design and a.get("link", "") in ("", repo):
+            a["link"] = design
+        elif not a.get("link"):
+            a["link"] = repo
         if a.get("status") in (None, "not-started"):
             a["status"] = "draft"
     path.write_text(dump(yaml, doc), encoding="utf-8", newline="\n")
-    if spec is not None:
-        if "project_spec" in arts:
-            spec_doc.write(path.parent, spec, msgs, slug)
-        else:
-            msgs.append(f"{slug}: project spec form skipped (no project_spec artifact in the manifest)")
+    for key, payload in forms.items():
+        if key in arts:
+            FORM_DOCS[key][1](path.parent, payload, msgs, slug)
 
     target = patch.get("phase")
     if target and target != doc.get("phase"):
@@ -240,8 +251,7 @@ def apply_one(slug, data, yaml):
                     "date": date.today().isoformat(), "decision": note, "by": "Product Hub page"}))
                 path.write_text(dump(yaml, doc), encoding="utf-8", newline="\n")
                 msgs.append(f"{slug}: {note}")
-    if (path.parent / "spec.yaml").exists():
-        spec_doc.render(path.parent)   # keep the doc's header (status, owner, UX link) current
+    spec_doc.render_all(path.parent)   # keep the docs' headers (status, owner, links) current
     msgs.insert(0, f"{slug}: applied")
     return True, msgs, to_read
 

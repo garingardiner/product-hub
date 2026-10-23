@@ -36,9 +36,17 @@ def data_checks(folder, phase):
             issues.append("sizing.customer_count missing")
     if phase == "spec":
         # Open questions come from the hub's Project spec form (spec.yaml); blocking ones hold the gate
-        n = sum(1 for q in load(folder / "spec.yaml").get("open_questions") or [] if q.get("blocking"))
-        if n:
-            issues.append(f"{n} blocking open question{'s' if n > 1 else ''} in the project spec")
+        for file, label in (("spec.yaml", "project spec"), ("ux-spec.yaml", "UX spec")):
+            n = sum(1 for q in load(folder / file).get("open_questions") or [] if q.get("blocking"))
+            if n:
+                issues.append(f"{n} blocking open question{'s' if n > 1 else ''} in the {label}")
+        # The UX spec form maps flows to requirement IDs; every P0 should be covered by one
+        if (folder / "ux-spec.yaml").exists():
+            covered = {r for f in load(folder / "ux-spec.yaml").get("flows") or [] for r in f.get("requirements") or []}
+            p0 = [r.get("id") for r in load(folder / "requirements.yaml").get("requirements") or []
+                  if r.get("priority") == "P0" and r.get("status") != "dropped" and r.get("id") not in covered]
+            if p0:
+                issues.append(f"P0 not in a UX flow: {', '.join(p0)}")
     if phase == "spec" and "success_metrics" in GATES["spec"]:
         for m in load(folder / "metrics.yaml").get("metrics", []):
             if not all(m.get(k) for k in ("target", "method", "review_date")):

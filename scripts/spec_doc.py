@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Project spec filled in on the Product Hub's form: write it to the repo and render the doc.
+"""Specs filled in on the Product Hub's forms: write them to the repo and render their docs.
 
-The form's sections go to spec.yaml, its requirements to requirements.yaml (merged by ID), and project-spec.md is
-generated from both. The YAML is the source of truth; edit the form (or the YAML), never the generated doc.
+Project spec: sections go to spec.yaml, requirements to requirements.yaml (merged by ID), project-spec.md is generated.
+UX spec: ux-spec.yaml (design links, flows mapped to requirement IDs, states, accessibility, questions), ux-spec.md.
+The YAML is the source of truth; edit the form (or the YAML), never the generated docs.
 
-Usage: python scripts/spec_doc.py <slug>    re-renders initiatives/<slug>/project-spec.md from the YAML
+Usage: python scripts/spec_doc.py <slug>    re-renders the initiative's docs from the YAML
 """
 import re, sys
 from io import StringIO
@@ -14,6 +15,9 @@ import status
 
 ROOT = status.ROOT
 DOC = "project-spec.md"
+UX_DOC = "ux-spec.md"
+UX_DATA = "ux-spec.yaml"
+STATE_KINDS = ("empty", "loading", "error", "edge")
 REPO_BLOB = "https://github.com/garingardiner/product-hub/blob/main/initiatives"
 REQ_ID = re.compile(r"^R-\d{3,}$")
 FB_ID = re.compile(r"^F-\d{6}-[A-Z0-9]{4}$")
@@ -151,7 +155,8 @@ def render(folder):
         L += ["_None yet._", ""]
     ux = arts.get("ux_spec") or {}
     L += ["## Linked artifacts", "",
-          f"- UX spec: {ux.get('link') or ('not needed' if ux.get('status') == 'n/a' else 'no link yet')}", ""]
+          f"- UX spec: {ux.get('link') or ('not needed' if ux.get('status') == 'n/a' else 'no link yet')}"
+          + (f" (details: [{UX_DOC}]({UX_DOC}))" if (folder / UX_DOC).exists() else ""), ""]
     qs = s.get("open_questions") or []
     L += ["## Open questions", ""]
     if qs:
@@ -164,11 +169,103 @@ def render(folder):
           f"- **Expected tickets:** {sup.get('tickets') or '—'}", ""]
     (folder / DOC).write_text("\n".join(L), encoding="utf-8", newline="\n")
 
-def blocking_questions(folder):
-    return [q for q in status.load(folder / "spec.yaml").get("open_questions") or [] if q.get("blocking")]
+# ---------- UX spec ----------
+def _https(v):
+    v = _t(v, 1000)
+    return v if re.match(r"^https://\S+$", v) else ""
+
+def _questions(s):
+    return [{"question": _t(q.get("question"), 500), "owner": _t(q.get("owner"), 100), "blocking": bool(q.get("blocking"))}
+            for q in s.get("open_questions") or [] if _t(q.get("question"))]
+
+def clean_ux(spec):
+    s = spec or {}
+    a = s.get("a11y") or {}
+    return {
+        "designs": [{"title": _t(d.get("title"), 200) or "Design", "url": _https(d.get("url"))}
+                    for d in s.get("designs") or [] if _https(d.get("url"))],
+        "flows": [{"name": _t(f.get("name"), 200), "steps": _t(f.get("steps")), "link": _https(f.get("link")),
+                   "requirements": list(dict.fromkeys(x for x in (str(i).strip() for i in f.get("requirements") or [])
+                                                      if REQ_ID.match(x)))}
+                  for f in s.get("flows") or [] if _t(f.get("name"))],
+        "states": [{"kind": x.get("kind") if x.get("kind") in STATE_KINDS else "edge", "where": _t(x.get("where"), 200),
+                    "description": _t(x.get("description"), 1000)} for x in s.get("states") or [] if _t(x.get("description"))],
+        "a11y": {k: _t(a.get(k), 2000) for k in ("keyboard", "screen_reader", "visual")},
+        "open_questions": _questions(s),
+        "no_open_questions": bool(s.get("no_open_questions")),
+    }
+
+def write_ux(folder, spec, msgs, slug):
+    ux = clean_ux(spec)
+    out = StringIO()
+    _yaml().dump(ux, out)
+    (folder / UX_DATA).write_text("# UX spec, filled in on the Product Hub's form. ux-spec.md is generated from this by "
+                                  "scripts/spec_doc.py; edit this file or the form, not the doc.\n" + out.getvalue(),
+                                  encoding="utf-8", newline="\n")
+    msgs.append(f"{slug}: UX spec saved ({len(ux['flows'])} flow(s), {len(ux['states'])} state(s), "
+                f"{len(ux['designs'])} design link(s))")
+    missing = uncovered_p0(folder)
+    if missing:
+        msgs.append(f"{slug}: P0 requirements not in any UX flow yet: {', '.join(missing)}")
+    render_ux(folder)
+
+def uncovered_p0(folder):
+    """P0 requirements no UX flow covers ([] when there's no UX spec form yet)."""
+    if not (folder / UX_DATA).exists():
+        return []
+    ux = status.load(folder / UX_DATA)
+    covered = {r for f in ux.get("flows") or [] for r in f.get("requirements") or []}
+    p0 = [r.get("id") for r in status.load(folder / "requirements.yaml").get("requirements") or []
+          if r.get("priority") == "P0" and r.get("status") != "dropped"]
+    return [r for r in p0 if r not in covered]
+
+def render_ux(folder):
+    m = status.load(folder / "initiative.yaml")
+    u = status.load(folder / UX_DATA)
+    reqs = {r.get("id"): r for r in status.load(folder / "requirements.yaml").get("requirements") or []}
+    art = (m.get("artifacts") or {}).get("ux_spec") or {}
+    L = [f"# UX spec: {m.get('name', folder.name)}", "",
+         f"_Generated from `{UX_DATA}` by `scripts/spec_doc.py`. Edit the form on the Product Hub, not this file._", "",
+         f"**Owner:** {art.get('owner') or m.get('owner') or '—'} · **Spec status:** {art.get('status', '—')} · "
+         f"Project spec: [{DOC}]({DOC})", ""]
+    L += ["## Design files", ""] + ([f"- [{d['title']}]({d['url']})" for d in u.get("designs") or []] or ["_None linked yet._"]) + [""]
+    L += ["## Flows and screens", ""]
+    for f in u.get("flows") or []:
+        ids = f.get("requirements") or []
+        L += [f"### {f['name']}", ""]
+        if ids:
+            L += ["Covers: " + ", ".join(f"{i} ({reqs[i].get('title')})" if i in reqs else i for i in ids), ""]
+        if f.get("steps"):
+            L += [f["steps"], ""]
+        if f.get("link"):
+            L += [f"Design: {f['link']}", ""]
+    if not u.get("flows"):
+        L += ["_None yet._", ""]
+    missing = uncovered_p0(folder)
+    L += ["**P0 coverage:** " + ("every P0 requirement is in a flow." if not missing
+                                 else "not yet in any flow: " + ", ".join(missing)), ""]
+    names = {"empty": "Empty", "loading": "Loading", "error": "Error", "edge": "Edge case"}
+    L += ["## Empty, error and edge states", ""]
+    L += [f"- **{names.get(x.get('kind'), 'Edge case')}**" + (f" ({x['where']})" if x.get("where") else "") + f": {x['description']}"
+          for x in u.get("states") or []] or ["_None yet._"]
+    a = u.get("a11y") or {}
+    L += ["", "## Accessibility", "", f"- **Keyboard:** {a.get('keyboard') or '—'}",
+          f"- **Screen readers:** {a.get('screen_reader') or '—'}",
+          f"- **Visual (contrast, color, zoom):** {a.get('visual') or '—'}", ""]
+    qs = u.get("open_questions") or []
+    L += ["## Open design questions", ""]
+    L += [f"- {'**Blocking:** ' if q.get('blocking') else ''}{q['question']} (owner: {q.get('owner') or 'unassigned'})"
+          for q in qs] or ["_None right now._" if u.get("no_open_questions") else "_None listed yet._"]
+    (folder / UX_DOC).write_text("\n".join(L) + "\n", encoding="utf-8", newline="\n")
+
+def render_all(folder):
+    if (folder / "spec.yaml").exists():
+        render(folder)
+    if (folder / UX_DATA).exists():
+        render_ux(folder)
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         sys.exit(__doc__)
-    render(ROOT / "initiatives" / sys.argv[1])
-    print(f"{sys.argv[1]}/{DOC} rendered")
+    render_all(ROOT / "initiatives" / sys.argv[1])
+    print(f"{sys.argv[1]}: docs rendered")
