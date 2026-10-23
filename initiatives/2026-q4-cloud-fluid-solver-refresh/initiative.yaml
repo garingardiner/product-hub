@@ -1,7 +1,7 @@
 name: "CAD Fluid Solver (Refresh)"
 slug: "2026-q4-cloud-fluid-solver-refresh"
 problem: "Replace our current solver with an updated one that is more flexible and offers additional capabilities"
-phase: discovery
+phase: spec
 priority: P1
 owner: "Bryce Mazurowski"
 team: "Analyze"
@@ -15,7 +15,8 @@ collaborators:
   marketing: []
 target_release: ""
 blockers: []
-decisions: []
+decisions:
+- {date: '2026-10-23', decision: 'Moved from discovery to spec, passing over feedback; open at the time: concept is not-started', by: Product Hub page}
 artifacts:
   concept: {form: claude-doc, link: "", status: not-started, owner: ""}
   feedback: {form: data, path: feedback.yaml, status: not-started, owner: ""}
