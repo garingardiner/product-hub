@@ -1,5 +1,5 @@
 {
-  "exported_at": "2026-10-23T00:28:08Z",
+  "exported_at": "2026-10-23T00:33:02Z",
   "source": "Feedback Board (synced by Claude)",
   "count": 3,
   "entries": [
@@ -21,9 +21,10 @@
       "link": "https://miro.com/app/board/uXjVHzhJp5w=/?share_link_id=593961316560",
       "segment": "aerospace",
       "date": "2026-10-22",
-      "initiative": "",
+      "initiative": "2026-q4-cloud-fluid-solver-refresh",
       "requirements": [],
-      "createdAt": "2026-10-23T00:18:21.256Z"
+      "createdAt": "2026-10-23T00:18:21.256Z",
+      "updatedAt": "2026-10-23T00:28:59.793Z"
     },
     {
       "id": "F-261022-Y7NY",
