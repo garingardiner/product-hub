@@ -122,7 +122,7 @@ draft, in-review, approved and n/a; `synthesized` and `superseded` stay valid in
        If a link can't be read (no access, connector missing), say so and leave it `read: false`.
     4. `python scripts/status.py`; refresh the snapshot; `delete` each applied `edits/<slug>` at its version in
        `applied.json`; commit and push.
-  - **Scheduled sync** (a scheduled task checks every 5 minutes; it syncs on its own when something changed):
+  - **Scheduled sync** (a scheduled task checks every 15 minutes; it syncs on its own when something changed):
     1. `ArtifactData` `get` `sync/status` and `sync/request` on the hub, `list` the hub's `edits`, and `list` the
        Feedback Board's `feedback`. Sync only if at least one is true, else stop and change nothing:
        - a `sync/request` whose `requestedAt` is later than `status.lastRunAt` (someone clicked Sync now);

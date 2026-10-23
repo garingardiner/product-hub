@@ -481,7 +481,7 @@ function renderBanner(){
   const b=$("#pending-banner");
   b.classList.toggle("hidden",!slugs.length);
   if(!slugs.length) return;
-  b.replaceChildren(el("b",{text:`${slugs.length} initiative${slugs.length===1?" has":"s have"} unsynced edits`})," (",slugs.map(s=>init(s).name).join(", "),"). They show here now and are written into the repo automatically, about 5 minutes after the last change and within about 15 minutes. Click ",el("b",{text:"Sync now"})," at the top to sync sooner.");
+  b.replaceChildren(el("b",{text:`${slugs.length} initiative${slugs.length===1?" has":"s have"} unsynced edits`})," (",slugs.map(s=>init(s).name).join(", "),"). They show here now and are written into the repo automatically, within about 20 minutes of the last change. Click ",el("b",{text:"Sync now"})," at the top to sync sooner.");
 }
 function renderPipe(inits){
   $("#pipe").replaceChildren(...PHASES.map((p,i)=>el("div",{class:"col",id:"phase-"+p},
@@ -558,7 +558,7 @@ function renderDetail(){
 
   const isNew=!!b._new;
   const pend=e?el("div",{class:"banner"},
-    el("b",{text:isNew?"New initiative, not synced yet":"Unsynced edits"}),` by `,el("span",{"data-uid":e.updatedBy||"",text:names[e.updatedBy]||"a teammate"}),` on ${String(e.updatedAt||"").slice(0,10)}. ${isNew?"It":"They"} sync to the repo automatically within about 15 minutes. `,
+    el("b",{text:isNew?"New initiative, not synced yet":"Unsynced edits"}),` by `,el("span",{"data-uid":e.updatedBy||"",text:names[e.updatedBy]||"a teammate"}),` on ${String(e.updatedAt||"").slice(0,10)}. ${isNew?"It":"They"} sync to the repo automatically within about 20 minutes. `,
     canEdit?(confirmDiscard
       ?el("button",{class:"btn danger small",type:"button",onclick:()=>discard(i.slug)},isNew?"Confirm: delete this new initiative":"Confirm discard")
       :el("button",{class:"btn ghost small",type:"button",onclick:()=>{confirmDiscard=true;renderDetail();}},isNew?"Delete new initiative":"Discard edits")):null):null;
@@ -602,8 +602,8 @@ function renderSync(){
   const pending=Object.keys(EDITS).length;
   const parts=[];
   parts.push(el("span",{text:st.lastSyncedAt?`Last synced ${fmtTime(st.lastSyncedAt)}`:"Not synced from this page yet"}));
-  if(waiting) parts.push(pill(`Sync requested ${fmtTime(rq.requestedAt)} · runs at the next check (every 5 min)`,"pending"));
-  else if(pending) parts.push(el("span",{text:`${pending} initiative${pending===1?"":"s"} with unsynced edits · syncs automatically within about 15 minutes`}));
+  if(waiting) parts.push(pill(`Sync requested ${fmtTime(rq.requestedAt)} · runs at the next check (every 15 min)`,"pending"));
+  else if(pending) parts.push(el("span",{text:`${pending} initiative${pending===1?"":"s"} with unsynced edits · syncs automatically within about 20 minutes`}));
   if(canEdit&&!waiting) parts.push(el("button",{class:"btn small",type:"button",id:"sync-now",onclick:requestSync},"Sync now"));
   if(syncSaying) parts.push(el("span",{text:syncSaying}));
   const held=st.heldDeletes||[], msgs=st.messages||[];
@@ -1533,7 +1533,7 @@ function editForm(i,a){
       el("td",{"data-form-cell":x.key},editFormCell(i.slug,x.key)));
   });
   return el("div",{class:"form"},
-    el("p",{class:"note",text:"Changes show on the page as soon as you save, and sync to the repo automatically within about 15 minutes. Moving phase with open gate items is allowed; they're noted in the decision log."}),
+    el("p",{class:"note",text:"Changes show on the page as soon as you save, and sync to the repo automatically within about 20 minutes. Moving phase with open gate items is allowed; they're noted in the decision log."}),
     el("div",{class:"row"},inp("name","Name"),el("label",{},"Priority",el("select",{onchange:ev=>{d.priority=ev.target.value}},["P0","P1","P2"].map(p=>el("option",{value:p,text:p,selected:d.priority===p})))),choiceSelect("Owner",OWNERS,d.owner,v=>{d.owner=v}),
       choiceSelect("Team",TEAMS,d.team,v=>{d.team=v}),
       choiceSelect("Size",SIZES,d.size,v=>{d.size=v}),
