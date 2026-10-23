@@ -104,9 +104,14 @@ Allowed values for `form` in a manifest:
        If a link can't be read (no access, connector missing), say so and leave it `read: false`.
     4. `python scripts/status.py`; refresh the snapshot; `delete` each applied `edits/<slug>` at its version in
        `applied.json`; commit and push.
-  - **Scheduled sync** (the page's Sync now button; a scheduled task checks every 15 minutes):
-    1. `ArtifactData` `get` `sync/request` and `sync/status` on the hub. If there's no request, or
-       `request.requestedAt` is not later than `status.lastRunAt`, stop here and do nothing else.
+  - **Scheduled sync** (a scheduled task checks every 5 minutes; it syncs on its own when something changed):
+    1. `ArtifactData` `get` `sync/status` and `sync/request` on the hub, `list` the hub's `edits`, and `list` the
+       Feedback Board's `feedback`. Sync only if at least one is true, else stop and change nothing:
+       - a `sync/request` whose `requestedAt` is later than `status.lastRunAt` (someone clicked Sync now);
+       - an `edits` document that is not a delete (no `delete: true`) and whose `updatedAt` is at least 5 minutes
+         ago, so a sync doesn't catch someone mid-edit;
+       - a Feedback Board entry whose `updatedAt` is later than `status.lastSyncedAt`.
+       A document holding only a delete never triggers a sync.
     2. Run **Sync hub** above with `--skip-deletes`, then **sync feedback** (Customer feedback library section).
        Never delete an initiative in a scheduled run: deletes stay pending until the user confirms them in chat.
     3. `set` `sync/status` to `{lastRunAt, lastSyncedAt (now, ISO UTC), messages: [every line the scripts printed that
