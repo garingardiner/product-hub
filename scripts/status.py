@@ -10,7 +10,8 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 PHASES = ["discovery", "feedback", "spec", "engineering", "gtm", "done", "parked"]
 FORMS = {"repo-md", "data", "claude-doc", "claude-artifact", "figma", "asana", "drive", "other"}
-STATUSES = {"not-started", "draft", "in-review", "approved", "synthesized", "superseded"}
+STATUSES = {"not-started", "draft", "in-review", "approved", "synthesized", "superseded", "n/a"}
+NOT_STARTED = ("not-started", "n/a", None)  # statuses that need no document; n/a also counts as done for a gate
 # Artifacts that must be complete to leave each phase, and the status that counts as complete.
 GATES = {
     "discovery": {"concept": {"approved"}},
@@ -59,7 +60,7 @@ def check(folder):
             errors.append(f"{key}: invalid form '{a.get('form')}'")
         if a.get("status") not in STATUSES:
             errors.append(f"{key}: invalid status '{a.get('status')}'")
-        if a.get("status") not in ("not-started", None):
+        if a.get("status") not in NOT_STARTED:
             loc = a.get("path") if a.get("form") in ("repo-md", "data") else a.get("link")
             if not loc:
                 errors.append(f"{key}: status '{a['status']}' but no path/link")
@@ -73,7 +74,7 @@ def check(folder):
     if m.get("phase") not in skip:
         for key, ok in GATES.get(m.get("phase"), {}).items():
             st = (m.get("artifacts") or {}).get(key, {}).get("status", "missing")
-            if st not in ok:
+            if st not in ok and st != "n/a":
                 gate.append(f"{key} is {st}")
         gate += data_checks(folder, m.get("phase"))
     return m, errors, gate

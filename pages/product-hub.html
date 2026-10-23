@@ -248,7 +248,8 @@ const PHASES=["discovery","feedback","spec","engineering","gtm"];
 const PHASE_NAME={discovery:"Discovery",feedback:"Feedback",spec:"Spec",engineering:"Engineering",gtm:"GTM",done:"Done",parked:"Parked"};
 const GATE_TEXT={discovery:"Concept approved",feedback:"Feedback synthesized, sizing recorded",spec:"Project spec, UX spec and success metrics approved",engineering:"Scope approved, every P0 covered, QA approach set",gtm:"Feature/Benefits approved, then post-launch review"};
 const GATES={discovery:{concept:["approved"]},feedback:{feedback:["synthesized","approved"]},spec:{project_spec:["approved"],ux_spec:["approved"],success_metrics:["approved"]},engineering:{engineering_scope:["approved"]},gtm:{feature_benefits:["approved"]}};
-const STATUSES=["not-started","draft","in-review","approved","synthesized","superseded"];
+const STATUSES=["not-started","draft","in-review","approved","synthesized","superseded","n/a"];
+const STATUS_LABEL={"n/a":"N/A (not needed)"};
 const ART_LABEL={concept:"Concept",feedback:"Feedback",project_spec:"Project spec",ux_spec:"UX spec",success_metrics:"Success metrics",engineering_scope:"Engineering scope",feature_benefits:"Feature/Benefits"};
 const SEG={aerospace:"Aerospace",automotive:"Automotive",power:"Power"};
 const PHASE_ARTS={discovery:["concept"],feedback:["feedback"],spec:["project_spec","ux_spec","success_metrics"],engineering:["engineering_scope"],gtm:["feature_benefits"]};
@@ -301,7 +302,7 @@ function el(tag,attrs={},...kids){
 }
 const rows=n=>S[n]||[];
 const today=()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10)};
-const pillClass=v=>({approved:"ok",synthesized:"ok",supported:"ok","in-scope":"ok",shipped:"ok",hit:"ok",Ready:"ok","in-review":"warn","Not ready":"warn",inconclusive:"warn",draft:"",refuted:"bad",missed:"bad",P0:"bad","not-started":"dim",open:"dim",dropped:"dim",superseded:"dim"}[v]??"");
+const pillClass=v=>({approved:"ok",synthesized:"ok",supported:"ok","in-scope":"ok",shipped:"ok",hit:"ok",Ready:"ok","in-review":"warn","Not ready":"warn",inconclusive:"warn",draft:"",refuted:"bad",missed:"bad",P0:"bad","not-started":"dim","n/a":"dim",open:"dim",dropped:"dim",superseded:"dim"}[v]??"");
 const pill=(v,cls)=>el("span",{class:"pill "+(cls??pillClass(v)),text:v});
 
 /* ---------- merged view: snapshot + pending edits ---------- */
@@ -341,7 +342,7 @@ function arts(slug){
 function gaps(slug,phase,artList){
   const b=base(slug), req=GATES[phase]||{}, out=[];
   if(init(slug).skip.includes(phase)) return out;   // not needed: no gate to pass
-  for(const [k,ok] of Object.entries(req)){const a=artList.find(x=>x.key===k);const st=a?a.status:"missing";if(!ok.includes(st)) out.push(`${ART_LABEL[k]||k} is ${st}`);}
+  for(const [k,ok] of Object.entries(req)){const a=artList.find(x=>x.key===k);const st=a?a.status:"missing";if(!ok.includes(st)&&st!=="n/a") out.push(`${ART_LABEL[k]||k} is ${st}`);}
   if(phase===b.phase) out.push(...(b.gate_data||[])); else out.push("Data checks for this phase run when the hub syncs");
   return out;
 }
@@ -413,7 +414,7 @@ function renderRoadmap(inits){
       el("td",{},pill(i.priority)),el("td",{},el("b",{text:i.name}),tag?[" ",tag]:null),
       el("td",{text:PHASE_NAME[i.phase]||i.phase}),el("td",{text:i.owner}),el("td",{text:i.size||"—"}),el("td",{text:fmtTarget(i.target)}),
       el("td",{},pill(isReady(i)?"Ready":"Not ready")),
-      el("td",{class:"num",text:`${a.filter(x=>["approved","synthesized"].includes(x.status)).length} of ${a.length}`}),
+      el("td",{class:"num",text:`${a.filter(x=>["approved","synthesized"].includes(x.status)).length} of ${a.filter(x=>x.status!=="n/a").length}`}),
       el("td",{class:"num",text:i.blockers.length}));
   }));
 }
@@ -718,7 +719,7 @@ function editForm(i,a){
     const v=d.art[x.key]; const fileForm=["repo-md","data"].includes(x.form);
     return el("tr",{},
       el("td",{text:x.artifact}),
-      el("td",{},el("select",{"aria-label":`${x.artifact} status`,onchange:ev=>{v.status=ev.target.value;drawPhase();}},STATUSES.map(s=>el("option",{value:s,text:s,selected:v.status===s})))),
+      el("td",{},el("select",{"aria-label":`${x.artifact} status`,onchange:ev=>{v.status=ev.target.value;drawPhase();}},STATUSES.map(s=>el("option",{value:s,text:STATUS_LABEL[s]||s,selected:v.status===s})))),
       el("td",{},el("input",{type:"text",value:v.owner,"aria-label":`${x.artifact} owner`,style:"width:9rem",oninput:ev=>{v.owner=ev.target.value}})),
       el("td",{},fileForm?el("span",{class:"note",text:`${x.location} (in repo)`}):el("input",{type:"text",value:v.link,placeholder:"https://…","aria-label":`${x.artifact} link`,style:"width:min(100%,18rem)",oninput:ev=>{v.link=ev.target.value}})));
   });
@@ -768,7 +769,7 @@ async function saveDraft(){
   const artCh={};
   // A started artifact needs its document: same rule the repo's status check enforces
   const noDoc=baseArts(d.slug).filter(a=>{const v=d.art[a.key];const loc=["repo-md","data"].includes(a.form)?a.location:v.link.trim();
-    return v.status!=="not-started"&&!loc;}).map(a=>a.artifact);
+    return !["not-started","n/a"].includes(v.status)&&!loc;}).map(a=>a.artifact);
   if(noDoc.length){say(`${noDoc.join(", ")} ${noDoc.length===1?"needs":"need"} a link before ${noDoc.length===1?"it":"they"} can be draft, in review or approved. Add the link, set ${noDoc.length===1?"it":"them"} back to not-started, or mark ${noDoc.length===1?"its phase":"those phases"} not needed.`);return;}
   for(const a of baseArts(d.slug)){
     const v=d.art[a.key], c={};

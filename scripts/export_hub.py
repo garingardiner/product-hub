@@ -60,7 +60,7 @@ def main():
             "gate_gaps": "; ".join(gate), "blockers": "; ".join(m.get("blockers") or []),
             "blocker_count": len(m.get("blockers") or []),
             "artifacts_approved": sum(1 for a in arts.values() if a.get("status") in ("approved", "synthesized")),
-            "artifacts_total": len(arts),
+            "artifacts_total": sum(1 for a in arts.values() if a.get("status") != "n/a"),
             "requirements": len(reqs), "p0_requirements": sum(1 for r in reqs if r.get("priority") == "P0"),
             "open_hypotheses": sum(1 for h in hyps if h.get("verdict") in (None, "open")),
             "manifest_errors": "; ".join(errors),

@@ -23,7 +23,7 @@ artifacts:
     form: repo-md | data | claude-doc | claude-artifact | figma | asana | drive | other
     path: string             # for repo-md / data
     link: string             # for everything else
-    status: not-started | draft | in-review | approved | synthesized | superseded
+    status: not-started | draft | in-review | approved | synthesized | superseded | n/a   # n/a: not needed, counts as done for the gate
     owner: string
 attachments:                 # links and files added per phase (usually from the Product Hub page)
   - id: A-YYMMDD-XXXX

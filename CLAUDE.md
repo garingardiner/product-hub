@@ -75,6 +75,8 @@ Allowed values for `form` in a manifest:
 ## Artifact statuses
 
 `not-started` → `draft` → `in-review` → `approved` (feedback also uses `synthesized`). Use `superseded` for replaced artifacts.
+`n/a` marks an artifact this initiative doesn't need (e.g. no UX spec for a backend change): it needs no link and counts as done
+for its phase's gate. To skip a whole phase instead, use `skip_phases`.
 
 ## How to do common tasks
 
