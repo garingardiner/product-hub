@@ -1,43 +1,49 @@
-# Project spec: API Notebook
+# Product specification: API Notebook
 
 _Generated from `spec.yaml` and `requirements.yaml` by `scripts/spec_doc.py`. Edit the form on the Product Hub, not this file._
 
-**Owner:** Tristan Antonsen · **Team:** Build · **Priority:** P1 · **Target:** 2026-01 · **Spec status:** draft
+## 1. Overview & key information
 
-## Problem
+| | |
+|---|---|
+| Feature name | API Notebook |
+| Target launch | 2026-01 |
+| Product owner | Tristan Antonsen |
+| Status | draft |
 
-There is no way to manipulate an nTop notebook from code (python) (in a running session or headlessly). To add a block, wire up an output, or change a value inside the notebook, a human needs to do it with a mouse. There are three reasons these gaps need to be prioritized.
+## 2. Sales & marketing brief
+
+- **What is it?** —
+- **Key benefits:** —
+- **Target user:** —
+- **Sales pitch:** —
+
+## 3. Problem & goals
+
+**Problem statement:** There is no way to manipulate an nTop notebook from code (python) (in a running session or headlessly). To add a block, wire up an output, or change a value inside the notebook, a human needs to do it with a mouse. There are three reasons these gaps need to be prioritized.
 
 **Evidence:** none cited yet. Treat the problem as unconfirmed until feedback backs it.
 
-## Goals
+**Success metrics:**
 
 _None yet._
 
-## Non-goals
-
-_None yet._
-
-## User stories
-
-_None yet._
-
-## Requirements
+## 4. Requirements & user stories
 
 Source of truth: `requirements.yaml`.
 
 _None yet._
 
-## Linked artifacts
+## 5. Out of scope
 
-- UX spec: no link yet
+_Not listed yet._
+
+## 6. Design & tech notes
+
+- **UI / design link:** —
+- **Key interface guidelines:** —
+- **Technical dependencies / constraints:** —
 
 ## Open questions
 
 _None listed yet._
-
-## Support considerations
-
-- **Docs:** —
-- **Known edge cases:** —
-- **Expected tickets:** —

@@ -86,6 +86,7 @@ def main():
                                            "feature_benefits": (f / "feature-benefits.md").exists()},
                                   "project_spec": {**spec, "requirements": [{
                 "id": text(r.get("id")), "title": text(r.get("title")), "description": text(r.get("description")),
+                "user": text(r.get("user")), "benefit": text(r.get("benefit")),
                 "priority": text(r.get("priority")), "status": text(r.get("status")),
                 "acceptance_criteria": [text(c) for c in r.get("acceptance_criteria") or []],
                 "evidence": [text(e) for e in r.get("evidence") or []]} for r in reqs]}})

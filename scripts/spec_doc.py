@@ -43,18 +43,21 @@ def _ids(v):
 def clean(spec):
     """Validate the form's payload into plain data (sections and requirements apart)."""
     s = spec or {}
-    sup = s.get("support") or {}
+    b = s.get("brief") or {}
+    # Sections follow the Product Specification Template (Streamlined) V3, plus open questions for the Spec gate
     sections = {
+        "feature_name": _t(s.get("feature_name"), 200),
+        "brief": {"what": _t(b.get("what"), 500), "benefits": _strs(b.get("benefits"))[:5],
+                  "target_user": _t(b.get("target_user"), 300), "pitch": _t(b.get("pitch"), 1000)},
         "problem": _t(s.get("problem")),
         "evidence": _ids(s.get("evidence")),
-        "goals": [{"goal": _t(g.get("goal"), 500), "why": _t(g.get("why"), 500)} for g in s.get("goals") or [] if _t(g.get("goal"))],
-        "non_goals": [{"item": _t(g.get("item"), 500), "why": _t(g.get("why"), 500)} for g in s.get("non_goals") or [] if _t(g.get("item"))],
-        "stories": [{"persona": _t(x.get("persona"), 200), "want": _t(x.get("want"), 500), "so_that": _t(x.get("so_that"), 500)}
-                    for x in s.get("stories") or [] if _t(x.get("want"))],
-        "open_questions": [{"question": _t(q.get("question"), 500), "owner": _t(q.get("owner"), 100), "blocking": bool(q.get("blocking"))}
-                           for q in s.get("open_questions") or [] if _t(q.get("question"))],
+        "metrics": [{"metric": _t(m.get("metric"), 300), "target": _t(m.get("target"), 300)} for m in s.get("metrics") or [] if _t(m.get("metric"))],
+        "out_of_scope": _strs(s.get("out_of_scope")),
+        "design_link": _https(s.get("design_link")),
+        "design_notes": _t(s.get("design_notes")),
+        "tech_notes": _t(s.get("tech_notes")),
+        "open_questions": _questions(s),
         "no_open_questions": bool(s.get("no_open_questions")),
-        "support": {k: _t(sup.get(k), 2000) for k in ("docs", "edge_cases", "tickets")},
     }
     reqs, bad = [], []
     for r in s.get("requirements") or []:
@@ -63,7 +66,9 @@ def clean(spec):
             bad.append(rid or "(no id)")
             continue
         reqs.append({
+            # Each requirement is a user story: As a <user>, I want to <title>, so that <benefit>
             "id": rid, "title": _t(r.get("title"), 300), "description": _t(r.get("description")),
+            "user": _t(r.get("persona") or r.get("user"), 200), "benefit": _t(r.get("so_that") or r.get("benefit"), 500),
             "priority": r.get("priority") if r.get("priority") in PRIORITIES else "P1",
             "dropped": r.get("status") == "dropped",
             "acceptance_criteria": [_t(c, 500) for c in r.get("acceptance_criteria") or [] if _t(c)],
@@ -113,7 +118,10 @@ def write(folder, spec, msgs, slug):
             updated += 1
             if cur.get("status") == "dropped":
                 cur["status"] = "draft"   # brought back on the form
-        cur["title"], cur["description"], cur["priority"] = r["title"], r["description"], r["priority"]
+        cur["title"], cur["priority"] = r["title"], r["priority"]
+        cur["user"], cur["benefit"] = r["user"], r["benefit"]
+        if r["description"] or "description" not in cur:
+            cur["description"] = r["description"]
         cur["acceptance_criteria"] = r["acceptance_criteria"]
         cur["evidence"] = _flow_list(r["evidence"])
     out = StringIO()
@@ -131,46 +139,52 @@ def render(folder):
     L = [f"# Project spec: {m.get('name', folder.name)}", "",
          "_Generated from `spec.yaml` and `requirements.yaml` by `scripts/spec_doc.py`. Edit the form on the Product Hub, "
          "not this file._", ""]
-    facts = [f"**Owner:** {m.get('owner') or '—'}", f"**Team:** {m.get('team') or '—'}",
-             f"**Priority:** {m.get('priority') or '—'}", f"**Target:** {m.get('target_release') or '—'}",
-             f"**Spec status:** {(arts.get('project_spec') or {}).get('status', '—')}"]
-    L += [" · ".join(facts), ""]
-    cite = lambda ids: f" ({', '.join(ids)})" if ids else ""
-    L += ["## Problem", "", s.get("problem") or "_Not written yet._", ""]
+    sp = arts.get("project_spec") or {}
+    b = s.get("brief") or {}
+    L[0] = f"# Product specification: {s.get('feature_name') or m.get('name', folder.name)}"
+    L += ["## 1. Overview & key information", "", "| | |", "|---|---|",
+          f"| Feature name | {s.get('feature_name') or m.get('name', folder.name)} |",
+          f"| Target launch | {m.get('target_release') or '—'} |", f"| Product owner | {m.get('owner') or '—'} |",
+          f"| Status | {sp.get('status', '—')} |", ""]
+    L += ["## 2. Sales & marketing brief", "", f"- **What is it?** {b.get('what') or '—'}",
+          "- **Key benefits:**" + ("" if b.get("benefits") else " —")] + [f"  - {x}" for x in b.get("benefits") or []] + [
+          f"- **Target user:** {b.get('target_user') or '—'}", f"- **Sales pitch:** " + (f"“{b['pitch']}”" if b.get("pitch") else "—"), ""]
+    L += ["## 3. Problem & goals", "", "**Problem statement:** " + (s.get("problem") or "_Not written yet._"), ""]
     if s.get("evidence"):
         L += ["**Evidence:** " + ", ".join(s["evidence"]) + " (feedback library IDs; `python scripts/feedback.py show <ID>`)", ""]
     else:
         L += ["**Evidence:** none cited yet. Treat the problem as unconfirmed until feedback backs it.", ""]
-    L += ["## Goals", ""] + ([f"- {g['goal']}" + (f": {g['why']}" if g.get("why") else "") for g in s.get("goals") or []] or ["_None yet._"]) + [""]
-    L += ["## Non-goals", ""] + ([f"- {g['item']}" + (f": {g['why']}" if g.get("why") else "") for g in s.get("non_goals") or []] or ["_None yet._"]) + [""]
-    L += ["## User stories", ""] + ([f"- As a {x.get('persona') or 'user'}, I want {x['want']}" + (f", so that {x['so_that']}" if x.get("so_that") else "") + "."
-                                     for x in s.get("stories") or []] or ["_None yet._"]) + [""]
-    L += ["## Requirements", "", "Source of truth: `requirements.yaml`.", ""]
+    L += ["**Success metrics:**", ""] + ([f"- {x['metric']}" + (f": {x['target']}" if x.get("target") else "") for x in s.get("metrics") or []] or ["_None yet._"]) + [""]
+    L += ["## 4. Requirements & user stories", "", "Source of truth: `requirements.yaml`.", ""]
+    names = {"P0": "Must have (P0)", "P1": "Should have (P1)", "P2": "Could have (P2)"}
     if reqs:
+        L += ["| ID | Priority | As a… | I want to… | So that… |", "|---|---|---|---|---|"]
+        cell = lambda v: " ".join(str(v or "—").replace("|", "/").split())
         for r in sorted(reqs, key=lambda r: (r.get("priority", "P9"), r.get("id"))):
-            L += [f"### {r.get('id')} · {r.get('priority')} · {r.get('title')}", ""]
-            if r.get("description"):
-                L += [r["description"], ""]
-            if r.get("acceptance_criteria"):
-                L += ["Acceptance criteria:", ""] + [f"- {c}" for c in r["acceptance_criteria"]] + [""]
-            L += [f"Status: {r.get('status')}" + cite(r.get("evidence") or []), ""]
+            L.append(f"| {r.get('id')} | {names.get(r.get('priority'), r.get('priority'))} | {cell(r.get('user'))} | {cell(r.get('title'))} | {cell(r.get('benefit'))} |")
+        L += [""]
+        for r in sorted(reqs, key=lambda r: (r.get("priority", "P9"), r.get("id"))):
+            if r.get("acceptance_criteria") or r.get("evidence") or r.get("description"):
+                L += [f"**{r.get('id')}**" + (f" (evidence: {', '.join(r['evidence'])})" if r.get("evidence") else ""), ""]
+                if r.get("description"):
+                    L += [r["description"], ""]
+                L += [f"- {c}" for c in r.get("acceptance_criteria") or []] + [""]
     else:
         L += ["_None yet._", ""]
+    L += ["## 5. Out of scope", ""] + ([f"- {x}" for x in s.get("out_of_scope") or []] or ["_Not listed yet._"]) + [""]
     ux = arts.get("ux_spec") or {}
-    L += ["## Linked artifacts", "",
-          f"- UX spec: {ux.get('link') or ('not needed' if ux.get('status') == 'n/a' else 'no link yet')}"
-          + (f" (details: [{UX_DOC}]({UX_DOC}))" if (folder / UX_DOC).exists() else ""), ""]
+    L += ["## 6. Design & tech notes", "",
+          f"- **UI / design link:** {s.get('design_link') or ux.get('link') or '—'}"
+          + (f" (UX spec: [{UX_DOC}]({UX_DOC}))" if (folder / UX_DOC).exists() else ""),
+          f"- **Key interface guidelines:** {s.get('design_notes') or '—'}",
+          f"- **Technical dependencies / constraints:** {s.get('tech_notes') or '—'}", ""]
     qs = s.get("open_questions") or []
     L += ["## Open questions", ""]
     if qs:
         L += [f"- {'**Blocking:** ' if q.get('blocking') else ''}{q['question']} (owner: {q.get('owner') or 'unassigned'})" for q in qs]
     else:
         L += ["_None right now._" if s.get("no_open_questions") else "_None listed yet._"]
-    sup = s.get("support") or {}
-    L += ["", "## Support considerations", "",
-          f"- **Docs:** {sup.get('docs') or '—'}", f"- **Known edge cases:** {sup.get('edge_cases') or '—'}",
-          f"- **Expected tickets:** {sup.get('tickets') or '—'}", ""]
-    (folder / DOC).write_text("\n".join(L), encoding="utf-8", newline="\n")
+    (folder / DOC).write_text("\n".join(L) + "\n", encoding="utf-8", newline="\n")
 
 # ---------- UX spec ----------
 def _https(v):
