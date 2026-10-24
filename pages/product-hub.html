@@ -1165,7 +1165,7 @@ function uxCoverage(s){
   const box=$("#ux-cover"); if(!box||!form) return;
   const p0=liveReqs(form.slug).filter(r=>r.priority==="P0"), covered=new Set(s.requirements);
   const miss=p0.filter(r=>!covered.has(r.id));
-  box.className="gate "+(miss.length?"open":"pass");
+  box.className="gate "+(miss.length?"open":"pass")+(p0.length?"":" hidden");   // nothing to check until the project spec has a P0
   box.replaceChildren(...(!p0.length?[el("span",{text:"No P0 requirements in the project spec yet. Add them there, then mark which ones this design covers."})]
     :miss.length?[el("b",{text:`${miss.length} of ${p0.length} P0 requirement${p0.length===1?"":"s"} not covered by the design yet: `}),miss.map(r=>`${r.id} (${r.title})`).join(", ")]
     :[el("b",{text:`The design covers every P0 requirement (${p0.length}).`})]));
@@ -1305,7 +1305,7 @@ function scopeCoverage(s){
   const box=$("#scope-cover"); if(!box||!form) return;
   const p0=liveReqs(form.slug).filter(r=>r.priority==="P0"), covered=new Set(s.items.filter(x=>x.status!=="cut").flatMap(x=>x.requirements));
   const miss=p0.filter(r=>!covered.has(r.id));
-  box.className="gate "+(miss.length?"open":"pass");
+  box.className="gate "+(miss.length?"open":"pass")+(p0.length?"":" hidden");   // nothing to check until the project spec has a P0
   box.replaceChildren(...(!p0.length?[el("span",{text:"No P0 requirements in the project spec yet."})]
     :miss.length?[el("b",{text:`${miss.length} of ${p0.length} P0 requirement${p0.length===1?"":"s"} not in scope yet: `}),miss.map(r=>`${r.id} (${r.title})`).join(", ")]
     :[el("b",{text:`Every P0 requirement is in scope (${p0.length}).`})]));
