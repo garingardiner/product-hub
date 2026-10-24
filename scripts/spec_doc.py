@@ -415,14 +415,17 @@ def clean_fb(spec):
     s = spec or {}
     av = s.get("availability") or {}
     rids = lambda v: list(dict.fromkeys(x for x in (str(i).strip() for i in v or []) if REQ_ID.match(x)))
+    # One paragraph on what the feature is and how it helps the user; older drafts listed features one by one
+    old = s.get("features") or []
+    summary = _t(s.get("summary"), 4000) or "\n\n".join(
+        ": ".join(x for x in (_t(f.get("feature"), 300), _t(f.get("benefit"), 1000)) if x) for f in old if _t(f.get("feature")))
     return {
-        "features": [{"feature": _t(f.get("feature"), 300), "benefit": _t(f.get("benefit"), 1000), "requirements": rids(f.get("requirements"))}
-                     for f in s.get("features") or [] if _t(f.get("feature"))],
+        "summary": summary,
+        "requirements": rids(list(s.get("requirements") or []) + [r for f in old for r in f.get("requirements") or []]),
         "segments": [{"segment": _t(x.get("segment"), 60), "problem": _t(x.get("problem"), 1000)}
                      for x in s.get("segments") or [] if _t(x.get("segment"))],
         "proof_points": [{"id": _t(p.get("id"), 20), "note": _t(p.get("note"), 500)}
                          for p in s.get("proof_points") or [] if FB_ID.match(_t(p.get("id"), 20))],
-        "does_not": _strs(s.get("does_not")),
         "availability": {k: _t(av.get(k), 1000) for k in ("release", "plans", "limitations")},
     }
 
@@ -433,7 +436,7 @@ def write_fb(folder, spec, msgs, slug):
     (folder / FB_DATA).write_text("# Feature/Benefits, filled in on the Product Hub's form. feature-benefits.md is generated "
                                   "from this by scripts/spec_doc.py; edit this file or the form, not the doc.\n" + out.getvalue(),
                                   encoding="utf-8", newline="\n")
-    msgs.append(f"{slug}: Feature/Benefits saved ({len(fb['features'])} feature(s), {len(fb['proof_points'])} proof point(s))")
+    msgs.append(f"{slug}: Feature/Benefits saved ({len(fb['proof_points'])} proof point(s))")
     bad = unshipped_claims(folder)
     if bad:
         msgs.append(f"{slug}: Feature/Benefits claims requirements that aren't in scope: {', '.join(bad)}")
@@ -448,7 +451,9 @@ def unshipped_claims(folder):
     if not (folder / FB_DATA).exists():
         return []
     ok = in_scope_reqs(folder)
-    return sorted({r for f in status.load(folder / FB_DATA).get("features") or [] for r in f.get("requirements") or []} - ok)
+    fb = status.load(folder / FB_DATA)
+    claimed = set(fb.get("requirements") or []) | {r for f in fb.get("features") or [] for r in f.get("requirements") or []}
+    return sorted(claimed - ok)
 
 def render_fb(folder):
     import json
@@ -462,14 +467,10 @@ def render_fb(folder):
          f"_Generated from `{FB_DATA}` by `scripts/spec_doc.py`. Edit the form on the Product Hub, not this file. "
          "Every claim must map to a shipped requirement; quotes come only from the feedback library._", "",
          f"**Status:** {art.get('status', '—')} · **Owner:** {art.get('owner') or m.get('owner') or '—'}", ""]
-    L += ["## Features and benefits", ""]
-    for f in s.get("features") or []:
-        ids = f.get("requirements") or []
-        L += [f"### {f['feature']}", "", f.get("benefit") or "_Benefit not written yet._", ""]
-        if ids:
-            L += ["Delivers: " + ", ".join(f"{i} ({reqs[i].get('title')})" if i in reqs else i for i in ids), ""]
-    if not s.get("features"):
-        L += ["_None yet._", ""]
+    L += ["## Feature and benefit", "", s.get("summary") or "_Not written yet._", ""]
+    ids = s.get("requirements") or []
+    if ids:
+        L += ["Delivers: " + ", ".join(f"{i} ({reqs[i].get('title')})" if i in reqs else i for i in ids), ""]
     bad = unshipped_claims(folder)
     if bad:
         L += [f"**Check before sharing:** {', '.join(bad)} {'is' if len(bad) == 1 else 'are'} not in the engineering scope.", ""]
@@ -482,7 +483,6 @@ def render_fb(folder):
         L.append(f"- {said}" + (f" ({who})" if who else "") + f" [{p['id']}]" + (f": {p['note']}" if p.get("note") else ""))
     if not s.get("proof_points"):
         L += ["_None yet. Use only quotes and data from the feedback library._"]
-    L += ["", "## What it does not do", ""] + ([f"- {x}" for x in s.get("does_not") or []] or ["_Not listed yet._"])
     av = s.get("availability") or {}
     L += ["", "## Availability", "", f"- **Release:** {av.get('release') or '—'}", f"- **Plans / tiers:** {av.get('plans') or '—'}",
           f"- **Limitations:** {av.get('limitations') or '—'}", ""]

@@ -64,7 +64,8 @@ def data_checks(folder, phase):
     if phase == "gtm" and (folder / "feature-benefits.yaml").exists():
         # Every Feature/Benefits claim must map to a requirement that's in the engineering scope (not cut)
         ok = {r for i in load(folder / "scope.yaml").get("items") or [] if i.get("status") != "cut" for r in i.get("requirements") or []}
-        claimed = {r for f in load(folder / "feature-benefits.yaml").get("features") or [] for r in f.get("requirements") or []}
+        fb = load(folder / "feature-benefits.yaml")
+        claimed = set(fb.get("requirements") or []) | {r for f in fb.get("features") or [] for r in f.get("requirements") or []}
         if claimed - ok:
             issues.append(f"Feature/Benefits claims requirements not in scope: {', '.join(sorted(claimed - ok))}")
     return issues

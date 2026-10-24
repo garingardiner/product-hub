@@ -11,11 +11,12 @@ or a one-page `claude-doc` can be built from it; an existing link is kept as the
 Shipped scope items from `scope.yaml` (only what actually ships), customer evidence from feedback.
 
 ## Must contain
-- Each feature mapped to the customer benefit and the requirement IDs it delivers
-- Target segments and the problem each feature solves for them
-- Proof points: customer quotes or data from feedback (real sources only)
-- What it does NOT do (prevents over-promising), from non-goals
-- Availability: release date, plans/tiers, limitations
+- One paragraph: what the feature is and how it benefits the user (optionally, the requirement IDs it describes,
+  which must be in the engineering scope)
+- Target segments and the problem it solves for each
+- Proof points: customer quotes or data from the feedback library only (the form's Suggest proof points recommends
+  entries; a person picks which to use)
+- Availability: release date, plans/tiers, limitations (where over-promising risks live)
 
 ## After launch
 Review `metrics.yaml` on the review date; record actuals and verdicts, then set the initiative to `done`.
