@@ -1,5 +1,14 @@
 # Stable IDs; never reuse a retired ID. Priority: P0 must-have, P1 nice-to-have, P2 future.
-requirements: []
+requirements:
+- id: R-001
+  title: create a sweep easily
+  description: ''
+  priority: P0
+  status: draft
+  acceptance_criteria: []
+  evidence: []
+  user: Mechanical Engineer
+  benefit: I can make geometry I need to create quickly
 #  - id: R-001
 #    title: ""
 #    description: ""

@@ -1,0 +1,30 @@
+# UX spec, filled in on the Product Hub's form. ux-spec.md is generated from this by scripts/spec_doc.py; edit this file or the form, not the doc.
+feature_name: ''
+release: ''
+designer: Larry
+design_status: draft
+figma_link: ''
+snapshot:
+  summary: ''
+  friction: ''
+  value: ''
+  demo: ''
+journey:
+  persona: eengineer
+  entry: notebook
+  goal: create sweep quickly
+  success: ''
+requirements:
+- R-001
+components: []
+copy:
+  labels: ''
+  errors: ''
+  confirmations: ''
+a11y:
+  keyboard: ''
+  screen_reader: ''
+  responsive: ''
+deferred: []
+open_questions: []
+no_open_questions: false

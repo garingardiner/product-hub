@@ -20,8 +20,8 @@ decisions:
 artifacts:
   concept: {form: claude-doc, link: "", status: not-started, owner: ""}
   feedback: {form: data, path: feedback.yaml, status: not-started, owner: ""}
-  project_spec: {form: claude-doc, link: "https://docs.google.com/document/d/15y_FXomm9PEPNCLvlGpHoaVHcrC__LlEn67jK28eAdQ/edit?usp=sharing", status: approved, owner: ""}
-  ux_spec: {form: figma, link: "", status: not-started, owner: ""}
+  project_spec: {form: repo-md, link: "https://docs.google.com/document/d/15y_FXomm9PEPNCLvlGpHoaVHcrC__LlEn67jK28eAdQ/edit?usp=sharing", status: approved, owner: "", path: project-spec.md}
+  ux_spec: {form: repo-md, link: "https://github.com/garingardiner/product-hub/blob/main/initiatives/2026-q4-sweep-block/ux-spec.md", status: draft, owner: "", path: ux-spec.md}
   success_metrics: {form: data, path: metrics.yaml, status: not-started, owner: ""}
   engineering_scope: {form: data, path: scope.yaml, status: approved, owner: ""}
   feature_benefits: {form: claude-artifact, link: "", status: not-started, owner: ""}

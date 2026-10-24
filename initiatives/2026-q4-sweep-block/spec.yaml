@@ -1,0 +1,17 @@
+# Project spec sections, filled in on the Product Hub's form. Requirements live in requirements.yaml.
+# project-spec.md is generated from both by scripts/spec_doc.py; edit this file or the form, not the doc.
+feature_name: ''
+brief:
+  what: ''
+  benefits: []
+  target_user: Core users
+  pitch: ''
+problem: ''
+evidence: []
+metrics: []
+out_of_scope: []
+design_link: ''
+design_notes: ''
+tech_notes: ''
+open_questions: []
+no_open_questions: false
